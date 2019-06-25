@@ -92,8 +92,7 @@ class NNEncoder:
 
     def encodeInputsReadable(self, lowerBounds, upperBounds):
         if not (len(lowerBounds) == len(upperBounds)):
-            print('lowerBounds and upperBounds need to match the number of inputs')
-            return
+            raise IOError('lowerBounds and upperBounds need to match the number of inputs')
 
         #no constraints printed here. Later for all vars lower and upper bound constraints are added
         inputVars = []
@@ -179,6 +178,20 @@ class NNEncoder:
 
     def makePreamble(self):
         return '(set-option :produce-models true)\n(set-logic AUFLIRA)'
+
+    def makePreambleReadable(self):
+        preamble = '(set-option :produce-models true)\n(set-logic AUFLIRA)'
+        decls = ''
+        bounds = ''
+        for list in self.vars:
+            for var in list:
+                decls += '\n' + '(declare-const ' + var.name + ' ' + var.type +')'
+                if var.hasHi:
+                    bounds += '\n' + self.makeLeq(var.name, var.hi)
+                if var.hasLo:
+                    bounds += '\n' + self.makeGeq(var.name, var.lo)
+
+        return preamble + decls + '\n# ---- Bounds ----' + bounds
 
     def makeSuffix(self):
         return '(check-sat)\n(get-model)'
