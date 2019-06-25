@@ -13,6 +13,7 @@ class NNEncoder:
         self.file = file
         self.minFreeVar = freeVar
         self.intVars = []
+        self.vars = []
 
     def getNewVar(self):
         res = self.minFreeVar
@@ -86,6 +87,20 @@ class NNEncoder:
             constraints += (self.encodeGeq('x' + str(i), str(lo))) + '\n'
 
         return constraints
+
+    def encodeInputsReadable(self, lowerBounds, upperBounds):
+        if not (len(lowerBounds) == len(upperBounds)):
+            print('lowerBounds and upperBounds need to match the number of inputs')
+            return
+
+        #no constraints printed here. Later for all vars lower and upper bound constraints are added
+        i = 0
+        for lo, hi in zip(lowerBounds, upperBounds):
+            var = Variable(0, i, 'i')
+            var.setLo(lo)
+            var.setHi(hi)
+            self.vars.append(var)
+            i += 1
 
     def getOutPrevLayer(self, min, numNeuronsPrev):
         #returns an array of the var-numbers of the outputs of the previous layer
