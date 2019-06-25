@@ -6,6 +6,7 @@ class Variable:
         self.row = row
         self.prefix_name = prefix_name
         self.name = prefix_name + '_' + str(layer) + '_' + str(row)
+        # lower and upper bounds
         self.hasLo = False
         self.hasHi = False
         self.lo = 0
