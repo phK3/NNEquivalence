@@ -1,8 +1,10 @@
 
 import numpy as np
+import Variable
 import NNFileAccess
 
 def futile(x):
+    var = Variable(1, 1, 'y')
     print(x)
 
 class NNEncoder:
@@ -21,6 +23,24 @@ class NNEncoder:
         res = self.minFreeVar
         self.minFreeVar += num
         return res
+
+    #only use strings in args for make... methods
+    def makeMult(self, constStr, varName):
+        return '(* ' + constStr + ' ' + varName + ')'
+
+    def makeSum(self, terms):
+        sum = '(+'
+        for term in terms:
+            sum += ' ' + term
+
+        sum += ')'
+        return sum
+
+    def makeNeg(self, term):
+        return '(- ' + term + ')'
+
+    def makeLeq(self, lhs, rhs):
+        return '(assert (<= ' + lhs + ' ' + rhs + '))'
 
     def encodeLeq(self, sum, constant):
         return '(assert (<= ' + sum + ' ' + constant + '))'
