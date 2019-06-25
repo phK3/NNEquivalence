@@ -13,6 +13,8 @@ class NNEncoder:
         self.file = file
         self.minFreeVar = freeVar
         self.intVars = []
+        #list of list of vars
+        #last list always contains output of last layer
         self.vars = []
 
     def getNewVar(self):
@@ -94,13 +96,16 @@ class NNEncoder:
             return
 
         #no constraints printed here. Later for all vars lower and upper bound constraints are added
+        inputVars = []
         i = 0
         for lo, hi in zip(lowerBounds, upperBounds):
             var = Variable(0, i, 'i')
             var.setLo(lo)
             var.setHi(hi)
-            self.vars.append(var)
+            inputVars.append(var)
             i += 1
+
+        self.vars.append(inputVars)
 
     def getOutPrevLayer(self, min, numNeuronsPrev):
         #returns an array of the var-numbers of the outputs of the previous layer
