@@ -1,11 +1,12 @@
 
 class Variable:
 
-    def __init__(self,layer, row, prefix_name='x'):
+    def __init__(self,layer, row, prefix_name='x', type='real'):
         self.layer = layer
         self.row = row
         self.prefix_name = prefix_name
         self.name = prefix_name + '_' + str(layer) + '_' + str(row)
+        self.type = type
         # lower and upper bounds
         self.hasLo = False
         self.hasHi = False

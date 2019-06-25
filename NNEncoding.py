@@ -1,6 +1,6 @@
 
 import numpy as np
-import Variable
+from Variable import *
 import NNFileAccess
 
 def futile(x):
@@ -41,6 +41,13 @@ class NNEncoder:
 
     def makeLeq(self, lhs, rhs):
         return '(assert (<= ' + lhs + ' ' + rhs + '))'
+
+    def makeGeq(self, lhs, rhs):
+        #maybe switch to other representation later
+        return self.makeLeq(rhs, lhs)
+
+    def makeEq(self, lhs, rhs):
+        return '(assert (= ' + lhs + ' ' + rhs + '))'
 
     def encodeLeq(self, sum, constant):
         return '(assert (<= ' + sum + ' ' + constant + '))'
