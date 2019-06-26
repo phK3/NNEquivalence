@@ -123,6 +123,26 @@ class NNEncoder:
         sumTerm += '(- x' + str(var) + '))'
         return sumTerm
 
+    # weights is matrix where one column holds the weights for a neuron.
+    # Bias for that neuron is the last entry in that column
+    # numNeurons is the number of neurons in that layer
+    def encodeLinearLayer(self, weights, numNeurons, layerIndex):
+        enc = '# --- linear constraints layer ' + str(layerIndex) + ' ---'
+        prevNeurons = self.vars[-1]
+        prevNum = len(prevNeurons)
+        currentNeurons = []
+        for i in range(0, numNeurons):
+            var = Variable(layerIndex, i, 'x')
+            currentNeurons.append(var)
+            terms = [self.makeMult(str(weights[row][i]), prevNeurons[row].name) for row in range(0, prevNum)]
+            terms.append(str(weights[-1][i]))
+            enc += '\n' + self.makeEq(var.name, self.makeSum(terms))
+
+        return enc
+
+
+
+
     def getOutNeuron(self, neuron, numNeurons):
         return neuron + 2*numNeurons
 
@@ -145,7 +165,7 @@ class NNEncoder:
         #constraints for intermediate vars
         #neuron is var-id of neuron, matrix needs relative neuron number
         for neuron in range(min, min + numNeurons):
-            sumTerm = self.encodeDotProductAndVar(weights[:,neuron - min], prevNeuronsVec, neuron)
+            sumTerm = self.encodeDotProductAndVar(weights[:, neuron - min], prevNeuronsVec, neuron)
             constraints += self.encodeEq(sumTerm, str(0), mode) + "\n"
 
             # TODO: factor out activation function encoding
@@ -187,9 +207,9 @@ class NNEncoder:
             for var in list:
                 decls += '\n' + '(declare-const ' + var.name + ' ' + var.type +')'
                 if var.hasHi:
-                    bounds += '\n' + self.makeLeq(var.name, var.hi)
+                    bounds += '\n' + self.makeLeq(var.name, str(var.hi))
                 if var.hasLo:
-                    bounds += '\n' + self.makeGeq(var.name, var.lo)
+                    bounds += '\n' + self.makeGeq(var.name, str(var.lo))
 
         return preamble + decls + '\n# ---- Bounds ----' + bounds
 

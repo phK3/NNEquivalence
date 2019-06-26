@@ -1,7 +1,8 @@
 
 class Variable:
 
-    def __init__(self,layer, row, prefix_name='x', type='real'):
+    #types are Real and Int just as in SMTLib
+    def __init__(self,layer, row, prefix_name='x', type='Real'):
         self.layer = layer
         self.row = row
         self.prefix_name = prefix_name
