@@ -142,33 +142,50 @@ class NNEncoder:
 
         return enc
 
+    # encoding of ReLU function,
+    # takes input neuron (result of weighted summation) and output neuron
+    # returns encoding for ReLU for this output neuron
+    # and list of intermediate variables generated
+    def encodeRelu(self, inNeuron, outNeuron):
+        enc = ''
+        layerIndex = inNeuron.layer
+        rowIndex = inNeuron.row
 
-    def encodeActivationLayer(self, numNeurons, layerIndex):
+        delta = Variable(layerIndex, rowIndex, 'd', 'Int')
+        delta.setLo(0)
+        delta.setHi(1)
+
+        # later use bound on sn for m
+        m = 99999
+        dm = self.makeMult(str(m), delta.name)
+
+        enc += self.makeGeq(outNeuron.name, '0')
+        enc += '\n' + self.makeGeq(outNeuron.name, inNeuron.name)
+        enc += '\n' + self.makeLeq(self.makeSum([inNeuron.name, self.makeNeg(dm)]), '0')
+        enc += '\n' + self.makeGeq(self.makeSum([inNeuron.name, str(m), self.makeNeg(dm)]), '0')
+        enc += '\n' + self.makeLeq(outNeuron.name, self.makeSum([inNeuron.name, str(m), self.makeNeg(dm)]))
+        enc += '\n' + self.makeLeq(outNeuron.name, dm)
+
+        return (enc, [delta])
+
+
+    # encodes a layer with an activation function
+    # takes an activationEncoder method as argument
+    # this method has to have signature:
+    # (Encoding, IntermediateVars) activationEncoder(inputNeuron, outputNeuron)
+    def encodeActivationLayer(self, numNeurons, layerIndex, activatonEncoder):
         enc = '# --- activation constrainst layer ' + str(layerIndex) + ' ---'
         sumNeurons = self.vars[-1]
         deltas = []
         outNeurons = []
         for i in range(0, numNeurons):
             sn = sumNeurons[i]
-
-            delta = Variable(layerIndex, i, 'd', 'Int')
-            delta.setLo(0)
-            delta.setHi(1)
-            deltas.append(delta)
-
             out = Variable(layerIndex, i, 'o')
             outNeurons.append(out)
 
-            #later use bound on sn for m
-            m = 99999
-            dm = self.makeMult(str(m), delta.name)
-
-            enc += '\n' + self.makeGeq(out.name, '0')
-            enc += '\n' + self.makeGeq(out.name, sn.name)
-            enc += '\n' + self.makeLeq(self.makeSum([sn.name, self.makeNeg(dm)]), '0')
-            enc += '\n' + self.makeGeq(self.makeSum([sn.name, str(m), self.makeNeg(dm)]), '0')
-            enc += '\n' + self.makeLeq(out.name, self.makeSum([sn.name, str(m), self.makeNeg(dm)]))
-            enc += '\n' + self.makeLeq(out.name, dm)
+            activatonEncoded, intermediateVars = activatonEncoder(sn, out)
+            enc += '\n' + activatonEncoded
+            deltas.append(intermediateVars)
 
         self.vars.append(deltas)
         self.vars.append(outNeurons)
