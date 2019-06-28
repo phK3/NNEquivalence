@@ -142,6 +142,49 @@ class NNEncoder:
 
         return enc
 
+    # maxpool function, takes list of inputNeurons and output neuron.
+    # can't be used as activationEncoder here, because list of input neurons
+    # returns (enc, intermediateVars)
+    def encodeMaxPoolReadable(self, inNeurons, outNeuron):
+        num = len(inNeurons)
+        enc = ''
+        vars = []
+
+        # TODO: think of other ways to name the vars uniquely (too long names)
+        if num == 1:
+            enc = self.makeEq(inNeurons[0].name, outNeuron.name)
+            return (enc, vars)
+
+        if num == 2:
+            maxVarA = inNeurons[0]
+            maxVarB = inNeurons[1]
+
+        if num > 2:
+            maxVarA = Variable(outNeuron.layer, outNeuron.row, outNeuron.name + 'a')
+            maxVarB = Variable(outNeuron.layer, outNeuron.row, outNeuron.name + 'b')
+            enc1, vars1 = self.encodeMaxPoolReadable(inNeurons[:num//2], maxVarA)
+            enc2, vars2 = self.encodeMaxPoolReadable(inNeurons[num//2:], maxVarB)
+
+            enc += enc1 + '\n' + enc2
+            vars.append(vars1)
+            vars.append(vars2)
+
+        delta = Variable(outNeuron.layer, outNeuron.row, outNeuron.name + 'd', 'Int')
+        delta.setLo(0)
+        delta.setHi(1)
+        vars.append(delta)
+
+        m = 99999
+
+        md = self.makeMult(str(m), delta.name)
+        enc += '\n' + self.makeGeq(outNeuron.name, maxVarA.name)
+        enc += '\n' + self.makeGeq(outNeuron.name, maxVarB.name)
+        enc += '\n' + self.makeLeq(outNeuron.name, self.makeSum([maxVarA.name, md]))
+        enc += '\n' + self.makeLeq(outNeuron.name, self.makeSum([maxVarB.name, str(m), self.makeNeg(md)]))
+
+        return (enc, vars)
+
+
     # encoding of ReLU function,
     # takes input neuron (result of weighted summation) and output neuron
     # returns encoding for ReLU for this output neuron
