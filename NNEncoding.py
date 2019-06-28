@@ -138,8 +138,42 @@ class NNEncoder:
             terms.append(str(weights[-1][i]))
             enc += '\n' + self.makeEq(var.name, self.makeSum(terms))
 
+        self.vars.append(currentNeurons)
+
         return enc
 
+
+    def encodeActivationLayer(self, numNeurons, layerIndex):
+        enc = '# --- activation constrainst layer ' + str(layerIndex) + ' ---'
+        sumNeurons = self.vars[-1]
+        deltas = []
+        outNeurons = []
+        for i in range(0, numNeurons):
+            sn = sumNeurons[i]
+
+            delta = Variable(layerIndex, i, 'd', 'Int')
+            delta.setLo(0)
+            delta.setHi(1)
+            deltas.append(delta)
+
+            out = Variable(layerIndex, i, 'o')
+            outNeurons.append(out)
+
+            #later use bound on sn for m
+            m = 99999
+            dm = self.makeMult(str(m), delta.name)
+
+            enc += '\n' + self.makeGeq(out.name, '0')
+            enc += '\n' + self.makeGeq(out.name, sn.name)
+            enc += '\n' + self.makeLeq(self.makeSum([sn.name, self.makeNeg(dm)]), '0')
+            enc += '\n' + self.makeGeq(self.makeSum([sn.name, str(m), self.makeNeg(dm)]), '0')
+            enc += '\n' + self.makeLeq(out.name, self.makeSum([sn.name, str(m), self.makeNeg(dm)]))
+            enc += '\n' + self.makeLeq(out.name, dm)
+
+        self.vars.append(deltas)
+        self.vars.append(outNeurons)
+
+        return enc
 
 
 
