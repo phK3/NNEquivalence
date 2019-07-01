@@ -69,7 +69,7 @@ class NNEncoder:
     # Bias for that neuron is the last entry in that column
     # numNeurons is the number of neurons in that layer
     def encodeLinearLayer(self, weights, numNeurons, layerIndex):
-        enc = '# --- linear constraints layer ' + str(layerIndex) + ' ---'
+        enc = '; --- linear constraints layer ' + str(layerIndex) + ' ---'
         prevNeurons = self.vars[-1]
         prevNum = len(prevNeurons)
         currentNeurons = []
@@ -159,7 +159,7 @@ class NNEncoder:
     # this method has to have signature:
     # (Encoding, IntermediateVars) activationEncoder(inputNeuron, outputNeuron)
     def encodeActivationLayer(self, numNeurons, layerIndex, activatonEncoder):
-        enc = '# --- activation constrainst layer ' + str(layerIndex) + ' ---'
+        enc = '; --- activation constrainst layer ' + str(layerIndex) + ' ---'
         sumNeurons = self.vars[-1]
         deltas = []
         outNeurons = []
@@ -189,31 +189,28 @@ class NNEncoder:
                 if var.hasLo:
                     bounds += '\n' + self.makeGeq(var.name, str(var.lo))
 
-        return preamble + decls + '\n# ---- Bounds ----' + bounds
+        return preamble + decls + '\n; ---- Bounds ----' + bounds
 
     def makeSuffix(self):
         return '(check-sat)\n(get-model)'
 
     def encodeNN(self, numLayers, numInputs, layers, input_lowerBounds, input_upperBounds, mode='strict'):
-        inputEnc = self.encodeInputs(numInputs, input_lowerBounds, input_upperBounds)
+        self.encodeInputsReadable(input_lowerBounds, input_upperBounds)
 
         index = 0
         numNeuronsPrev = numInputs
-        layersEnc = ''
+        layersEnc = '; --- Encoding of layers ---'
         for activation, numNeurons, weights in layers:
             index += 1
-            layersEnc += self.encodeLayer(index, numNeurons, numNeuronsPrev, weights, activation, mode) + '\n'
-            numNeuronsPrev = numNeurons
+            linearEnc = self.encodeLinearLayer(weights, numNeurons, index)
+            # only for ReLU for now, need other function encoders for different activation functions
+            activationEnc = self.encodeActivationLayer(numNeurons, index, self.encodeRelu)
+            layersEnc += '\n' + linearEnc + '\n' + activationEnc
 
-        varDecls = ''
-        varsUsed = self.getNewVar()
-        for i in range(0, varsUsed):
-            if i in self.intVars:
-                varDecls += '(declare-const x' + str(i) + ' Int)\n'
-            else:
-                varDecls += '(declare-const x' + str(i) + ' Real)\n'
+        preamble = self.makePreambleReadable()
+        suffix = self.makeSuffix()
 
-        return varDecls + '\n' + inputEnc + '\n' + layersEnc
+        return preamble + '\n' + layersEnc + '\n' + suffix
 
 
     def encodeOneHotLayerReadable(self, layerIndex):
@@ -237,28 +234,34 @@ class NNEncoder:
             diffNeurons.append(diff)
             diffConstraints += '\n' + self.makeEq(diff.name, self.makeSum([inNeuron.name, self.makeNeg(maxNeuron.name)]))
 
-            enc += '\n' + self.makeLt(self.makeMult(str(diff.hi), out.name), diff.name)
+            enc += '\n' + self.makeGt(self.makeMult(str(diff.hi), out.name), diff.name)
             sum = self.makeSum([str(diff.lo), self.makeNeg(self.makeMult(str(diff.lo), out.name))])
             enc += '\n' + self.makeGeq(diff.name, sum)
 
         self.vars.append(maxVars)
+        self.vars.append([maxNeuron])
         self.vars.append(diffNeurons)
         self.vars.append(outNeurons)
 
-        return '# --- one hot layer constraints ---' + maxEnc + diffConstraints + enc
+        return '; --- one hot layer constraints ---' + maxEnc + diffConstraints + enc
 
 
-    def encodeNNReadableFixed(self):
+    def encodeNNReadableFixed(self, withOneHot=False):
         # encode simple one layer NN with relu function
         inputs = [1,2]
         weights = [[1,4],[2,5],[3,6]]
 
+        enc = ''
         self.encodeInputsReadable(inputs, inputs)
-        linearEnc = self.encodeLinearLayer(weights, 2, 1)
-        reluEnc = self.encodeActivationLayer(2, 1, self.encodeRelu)
+        enc += self.encodeLinearLayer(weights, 2, 1)
+        enc += '\n' + self.encodeActivationLayer(2, 1, self.encodeRelu)
+
+
+        if withOneHot:
+            enc += '\n' + self.encodeOneHotLayerReadable(2)
 
         preamble = self.makePreambleReadable()
         suffix = self.makeSuffix()
 
-        return preamble + '\n' + linearEnc + '\n' + reluEnc + '\n' + suffix
+        return preamble + '\n' + enc + '\n' + suffix
 
