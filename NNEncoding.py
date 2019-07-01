@@ -7,6 +7,10 @@ def futile(x):
     var = Variable(1, 1, 'y')
     print(x)
 
+# flatten list of lists
+def flatten(list):
+    return [x for sublist in list for x in sublist]
+
 class NNEncoder:
 
     def __init__(self, file, freeVar):
@@ -236,7 +240,7 @@ class NNEncoder:
             enc += '\n' + activatonEncoded
             deltas.append(intermediateVars)
 
-        self.vars.append(deltas)
+        self.vars.append(flatten(deltas))
         self.vars.append(outNeurons)
 
         return enc
@@ -463,6 +467,22 @@ class NNEncoder:
     def encodeEquivPreamble(self, net1, net2, mode='strict'):
         enc = self.encodeEquivalence(net1, net2, mode)
         return self.makePreamble() + '\n' + enc + '\n' + self.makeSuffix()
+
+
+    def encodeNNReadableFixed(self):
+        # encode simple one layer NN with relu function
+        inputs = [1,2]
+        weights = [[1,4],[2,5],[3,6]]
+
+        self.encodeInputsReadable(inputs, inputs)
+        linearEnc = self.encodeLinearLayer(weights, 2, 1)
+        reluEnc = self.encodeActivationLayer(2, 1, self.encodeRelu)
+
+        preamble = self.makePreambleReadable()
+        suffix = self.makeSuffix()
+
+        return preamble + '\n' + linearEnc + '\n' + reluEnc + '\n' + suffix
+
 
 
     def encodeNNFixed(self, numLayers, numInputs, layers):
