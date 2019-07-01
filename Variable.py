@@ -11,8 +11,10 @@ class Variable:
         # lower and upper bounds
         self.hasLo = False
         self.hasHi = False
-        self.lo = 0
-        self.hi = 0
+        # set to +/- 99999 as default
+        # TODO: change them later to useful values
+        self.lo = -99999
+        self.hi = 99999
 
     def setLo(self, lowerBound):
         self.lo = lowerBound

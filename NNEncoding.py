@@ -52,6 +52,12 @@ class NNEncoder:
     def makeEq(self, lhs, rhs):
         return '(assert (= ' + lhs + ' ' + rhs + '))'
 
+    def makeLt(self, lhs, rhs):
+        return '(assert (< ' + lhs + ' ' + rhs + '))'
+
+    def makeGt(self, lhs, rhs):
+        return self.makeLt(rhs, lhs)
+
     def encodeLeq(self, sum, constant):
         return '(assert (<= ' + sum + ' ' + constant + '))'
 
@@ -361,6 +367,39 @@ class NNEncoder:
             enc += self.encodeEq('x' + str(inputVars[0]), 'x' + str(outputVar), mode)
 
         return enc
+
+    def encodeOneHotLayerReadable(self, layerIndex):
+        inNeurons = self.vars[-1]
+        maxNeuron = Variable(layerIndex, 0, 'max')
+        maxEnc, maxVars = self.encodeMaxPoolReadable(inNeurons, maxNeuron)
+
+        outNeurons = []
+        diffNeurons = []
+        diffConstraints = ''
+        enc = ''
+        for i in range(0, len(inNeurons)):
+            out = Variable(layerIndex + 1, i, 'o', 'Int')
+            out.setLo(0)
+            out.setHi(1)
+            outNeurons.append(out)
+
+            inNeuron = inNeurons[i]
+
+            diff = Variable(layerIndex + 1, i, 'x')
+            diffNeurons.append(diff)
+            diffConstraints += '\n' + self.makeEq(diff.name, self.makeSum([inNeuron.name, self.makeNeg(maxNeuron.name)]))
+
+            enc += '\n' + self.makeLt(self.makeMult(str(diff.hi), out.name), diff.name)
+            sum = self.makeSum([str(diff.lo), self.makeNeg(self.makeMult(str(diff.lo), out.name))])
+            enc += '\n' + self.makeGeq(diff.name, sum)
+
+        self.vars.append(maxVars)
+        self.vars.append(diffNeurons)
+        self.vars.append(outNeurons)
+
+        return '# --- one hot layer constraints ---' + maxEnc + diffConstraints + enc
+
+
 
     def encodeOneHotLayer(self, outputVars, upperBounds, mode):
         maxVar = self.getNewVar()
