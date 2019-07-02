@@ -1,22 +1,22 @@
-
 import numpy as np
 from Variable import *
 import NNFileAccess
+
 
 # flatten list of lists
 def flatten(list):
     return [x for sublist in list for x in sublist]
 
+
 class NNEncoder:
 
-    def __init__(self, file, freeVar):
+    def __init__(self, file):
         self.file = file
-        #list of list of vars
-        #last list always contains output of last layer
+        # list of list of vars
+        # last list always contains output of last layer
         self.vars = []
 
-
-    #only use strings in args for make... methods
+    # only use strings in args for make... methods
     def makeMult(self, constStr, varName):
         return '(* ' + constStr + ' ' + varName + ')'
 
@@ -35,7 +35,7 @@ class NNEncoder:
         return '(assert (<= ' + lhs + ' ' + rhs + '))'
 
     def makeGeq(self, lhs, rhs):
-        #maybe switch to other representation later
+        # maybe switch to other representation later
         return self.makeLeq(rhs, lhs)
 
     def makeEq(self, lhs, rhs):
@@ -47,16 +47,15 @@ class NNEncoder:
     def makeGt(self, lhs, rhs):
         return self.makeLt(rhs, lhs)
 
-
-    def encodeInputsReadable(self, lowerBounds, upperBounds):
+    def encodeInputsReadable(self, lowerBounds, upperBounds, netPrefix):
         if not (len(lowerBounds) == len(upperBounds)):
             raise IOError('lowerBounds and upperBounds need to match the number of inputs')
 
-        #no constraints printed here. Later for all vars lower and upper bound constraints are added
+        # no constraints printed here. Later for all vars lower and upper bound constraints are added
         inputVars = []
         i = 0
         for lo, hi in zip(lowerBounds, upperBounds):
-            var = Variable(0, i, 'i')
+            var = Variable(0, i, netPrefix, 'i')
             var.setLo(lo)
             var.setHi(hi)
             inputVars.append(var)
@@ -64,17 +63,16 @@ class NNEncoder:
 
         self.vars.append(inputVars)
 
-
     # weights is matrix where one column holds the weights for a neuron.
     # Bias for that neuron is the last entry in that column
     # numNeurons is the number of neurons in that layer
-    def encodeLinearLayer(self, weights, numNeurons, layerIndex):
+    def encodeLinearLayer(self, weights, numNeurons, layerIndex, netPrefix):
         enc = '; --- linear constraints layer ' + str(layerIndex) + ' ---'
         prevNeurons = self.vars[-1]
         prevNum = len(prevNeurons)
         currentNeurons = []
         for i in range(0, numNeurons):
-            var = Variable(layerIndex, i, 'x')
+            var = Variable(layerIndex, i, netPrefix, 'x')
             currentNeurons.append(var)
             terms = [self.makeMult(str(weights[row][i]), prevNeurons[row].name) for row in range(0, prevNum)]
             terms.append(str(weights[-1][i]))
@@ -87,7 +85,7 @@ class NNEncoder:
     # maxpool function, takes list of inputNeurons and output neuron.
     # can't be used as activationEncoder here, because list of input neurons
     # returns (enc, intermediateVars)
-    def encodeMaxPoolReadable(self, inNeurons, outNeuron):
+    def encodeMaxPoolReadable(self, inNeurons, outNeuron, netPrefix):
         num = len(inNeurons)
         enc = ''
         vars = []
@@ -102,16 +100,16 @@ class NNEncoder:
             maxVarB = inNeurons[1]
 
         if num > 2:
-            maxVarA = Variable(outNeuron.layer, outNeuron.row, outNeuron.name + 'a')
-            maxVarB = Variable(outNeuron.layer, outNeuron.row, outNeuron.name + 'b')
-            enc1, vars1 = self.encodeMaxPoolReadable(inNeurons[:num//2], maxVarA)
-            enc2, vars2 = self.encodeMaxPoolReadable(inNeurons[num//2:], maxVarB)
+            maxVarA = Variable(outNeuron.layer, outNeuron.row, netPrefix, outNeuron.name + 'a')
+            maxVarB = Variable(outNeuron.layer, outNeuron.row, netPrefix, outNeuron.name + 'b')
+            enc1, vars1 = self.encodeMaxPoolReadable(inNeurons[:num // 2], maxVarA)
+            enc2, vars2 = self.encodeMaxPoolReadable(inNeurons[num // 2:], maxVarB)
 
             enc += enc1 + '\n' + enc2
             vars.append(vars1)
             vars.append(vars2)
 
-        delta = Variable(outNeuron.layer, outNeuron.row, outNeuron.name + 'd', 'Int')
+        delta = Variable(outNeuron.layer, outNeuron.row, netPrefix, outNeuron.name + 'd', 'Int')
         delta.setLo(0)
         delta.setHi(1)
         vars.append(delta)
@@ -126,17 +124,16 @@ class NNEncoder:
 
         return (enc, vars)
 
-
     # encoding of ReLU function,
     # takes input neuron (result of weighted summation) and output neuron
     # returns encoding for ReLU for this output neuron
     # and list of intermediate variables generated
-    def encodeRelu(self, inNeuron, outNeuron):
+    def encodeRelu(self, inNeuron, outNeuron, netPrefix):
         enc = ''
         layerIndex = inNeuron.layer
         rowIndex = inNeuron.row
 
-        delta = Variable(layerIndex, rowIndex, 'd', 'Int')
+        delta = Variable(layerIndex, rowIndex, netPrefix, 'd', 'Int')
         delta.setLo(0)
         delta.setHi(1)
 
@@ -153,22 +150,21 @@ class NNEncoder:
 
         return (enc, [delta])
 
-
     # encodes a layer with an activation function
     # takes an activationEncoder method as argument
     # this method has to have signature:
     # (Encoding, IntermediateVars) activationEncoder(inputNeuron, outputNeuron)
-    def encodeActivationLayer(self, numNeurons, layerIndex, activatonEncoder):
+    def encodeActivationLayer(self, numNeurons, layerIndex, netPrefix, activatonEncoder):
         enc = '; --- activation constrainst layer ' + str(layerIndex) + ' ---'
         sumNeurons = self.vars[-1]
         deltas = []
         outNeurons = []
         for i in range(0, numNeurons):
             sn = sumNeurons[i]
-            out = Variable(layerIndex, i, 'o')
+            out = Variable(layerIndex, i, netPrefix, 'o')
             outNeurons.append(out)
 
-            activatonEncoded, intermediateVars = activatonEncoder(sn, out)
+            activatonEncoded, intermediateVars = activatonEncoder(sn, out, netPrefix)
             enc += '\n' + activatonEncoded
             deltas.append(intermediateVars)
 
@@ -183,7 +179,7 @@ class NNEncoder:
         bounds = ''
         for list in self.vars:
             for var in list:
-                decls += '\n' + '(declare-const ' + var.name + ' ' + var.type +')'
+                decls += '\n' + '(declare-const ' + var.name + ' ' + var.type + ')'
                 if var.hasHi:
                     bounds += '\n' + self.makeLeq(var.name, str(var.hi))
                 if var.hasLo:
@@ -194,45 +190,52 @@ class NNEncoder:
     def makeSuffix(self):
         return '(check-sat)\n(get-model)'
 
-    def encodeNN(self, numLayers, numInputs, layers, input_lowerBounds, input_upperBounds, mode='strict'):
-        self.encodeInputsReadable(input_lowerBounds, input_upperBounds)
+    def encodeAllLayers(self, layers, input_lowerBounds, input_upperBounds, netPrefix='', withOneHot=False):
+        self.encodeInputsReadable(input_lowerBounds, input_upperBounds, netPrefix)
 
         index = 0
-        numNeuronsPrev = numInputs
         layersEnc = '; --- Encoding of layers ---'
         for activation, numNeurons, weights in layers:
             index += 1
-            linearEnc = self.encodeLinearLayer(weights, numNeurons, index)
+            linearEnc = self.encodeLinearLayer(weights, numNeurons, index, netPrefix)
             # only for ReLU for now, need other function encoders for different activation functions
-            activationEnc = self.encodeActivationLayer(numNeurons, index, self.encodeRelu)
+            activationEnc = self.encodeActivationLayer(numNeurons, index, netPrefix, self.encodeRelu)
             layersEnc += '\n' + linearEnc + '\n' + activationEnc
+
+        if withOneHot:
+            layersEnc += '\n' + self.encodeOneHotLayerReadable(len(layers) + 1, netPrefix)
+
+        return layersEnc
+
+    def encodeNN(self, layers, input_lowerBounds, input_upperBounds, withOneHot=False):
+        layersEnc = self.encodeAllLayers(layers, input_lowerBounds, input_upperBounds, '', withOneHot)
 
         preamble = self.makePreambleReadable()
         suffix = self.makeSuffix()
 
         return preamble + '\n' + layersEnc + '\n' + suffix
 
-
-    def encodeOneHotLayerReadable(self, layerIndex):
+    def encodeOneHotLayerReadable(self, layerIndex, netPrefix=''):
         inNeurons = self.vars[-1]
-        maxNeuron = Variable(layerIndex, 0, 'max')
-        maxEnc, maxVars = self.encodeMaxPoolReadable(inNeurons, maxNeuron)
+        maxNeuron = Variable(layerIndex, 0, netPrefix, 'max')
+        maxEnc, maxVars = self.encodeMaxPoolReadable(inNeurons, maxNeuron, netPrefix)
 
         outNeurons = []
         diffNeurons = []
         diffConstraints = ''
         enc = ''
         for i in range(0, len(inNeurons)):
-            out = Variable(layerIndex + 1, i, 'o', 'Int')
+            out = Variable(layerIndex + 1, i, netPrefix, 'o', 'Int')
             out.setLo(0)
             out.setHi(1)
             outNeurons.append(out)
 
             inNeuron = inNeurons[i]
 
-            diff = Variable(layerIndex + 1, i, 'x')
+            diff = Variable(layerIndex + 1, i, netPrefix, 'x')
             diffNeurons.append(diff)
-            diffConstraints += '\n' + self.makeEq(diff.name, self.makeSum([inNeuron.name, self.makeNeg(maxNeuron.name)]))
+            diffConstraints += '\n' + self.makeEq(diff.name,
+                                                  self.makeSum([inNeuron.name, self.makeNeg(maxNeuron.name)]))
 
             enc += '\n' + self.makeGt(self.makeMult(str(diff.hi), out.name), diff.name)
             sum = self.makeSum([str(diff.lo), self.makeNeg(self.makeMult(str(diff.lo), out.name))])
@@ -245,17 +248,15 @@ class NNEncoder:
 
         return '; --- one hot layer constraints ---' + maxEnc + diffConstraints + enc
 
-
     def encodeNNReadableFixed(self, withOneHot=False):
         # encode simple one layer NN with relu function
-        inputs = [1,2]
-        weights = [[1,4],[2,5],[3,6]]
+        inputs = [1, 2]
+        weights = [[1, 4], [2, 5], [3, 6]]
 
         enc = ''
         self.encodeInputsReadable(inputs, inputs)
         enc += self.encodeLinearLayer(weights, 2, 1)
         enc += '\n' + self.encodeActivationLayer(2, 1, self.encodeRelu)
-
 
         if withOneHot:
             enc += '\n' + self.encodeOneHotLayerReadable(2)
@@ -265,3 +266,25 @@ class NNEncoder:
 
         return preamble + '\n' + enc + '\n' + suffix
 
+
+    def encodeEquivalence(self, nn1, nn2, withOneHot=False):
+        layers1, los1, his1 = nn1
+        layers2, los2, his2 = nn2
+
+        encNN1 = self.encodeAllLayers(layers1, los1, his1, 'A', withOneHot)
+        nn1Outs = self.vars[-1]
+
+        encNN2 = self.encodeAllLayers(layers2, los2, his2, 'B', withOneHot)
+        nn2Outs = self.vars[-1]
+
+        if not len(nn1Outs) == len(nn2Outs):
+             raise IOError('only NNs with equal number of outputs can be equivalent')
+
+        eqConstraints = '; --- Equality Constraints --- '
+        for out1, out2 in zip(nn1Outs, nn2Outs):
+            eqConstraints += '\n' + self.makeEq(out1.name, out2.name)
+
+        preamble = self.makePreambleReadable()
+        suffix = self.makeSuffix()
+
+        return preamble + '\n' + encNN1 + '\n' + encNN2 + '\n' + eqConstraints + '\n' + suffix
