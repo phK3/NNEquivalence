@@ -190,9 +190,9 @@ class NNEncoder:
     def makeSuffix(self):
         return '(check-sat)\n(get-model)'
 
-    def encodeAllLayers(self, layers, input_lowerBounds, input_upperBounds, netPrefix='', withOneHot=False):
-        self.encodeInputsReadable(input_lowerBounds, input_upperBounds, netPrefix)
-
+    # encodes all interior layers (not input layer)
+    def encodeAllLayers(self, layers, netPrefix='', withOneHot=False):
+        # assumes input has been encoded before (inputs are at self.vars[-1])
         index = 0
         layersEnc = '; --- Encoding of layers ---'
         for activation, numNeurons, weights in layers:
@@ -208,7 +208,8 @@ class NNEncoder:
         return layersEnc
 
     def encodeNN(self, layers, input_lowerBounds, input_upperBounds, withOneHot=False):
-        layersEnc = self.encodeAllLayers(layers, input_lowerBounds, input_upperBounds, '', withOneHot)
+        self.encodeInputsReadable(input_lowerBounds, input_upperBounds, '')
+        layersEnc = self.encodeAllLayers(layers, '', withOneHot)
 
         preamble = self.makePreambleReadable()
         suffix = self.makeSuffix()
@@ -253,10 +254,11 @@ class NNEncoder:
         inputs = [1, 2]
         weights = [[1, 4], [2, 5], [3, 6]]
 
+        netPrefix = ''
         enc = ''
-        self.encodeInputsReadable(inputs, inputs)
-        enc += self.encodeLinearLayer(weights, 2, 1)
-        enc += '\n' + self.encodeActivationLayer(2, 1, self.encodeRelu)
+        self.encodeInputsReadable(inputs, inputs, netPrefix)
+        enc += self.encodeLinearLayer(weights, 2, 1, netPrefix)
+        enc += '\n' + self.encodeActivationLayer(2, 1, netPrefix, self.encodeRelu)
 
         if withOneHot:
             enc += '\n' + self.encodeOneHotLayerReadable(2)
@@ -267,22 +269,55 @@ class NNEncoder:
         return preamble + '\n' + enc + '\n' + suffix
 
 
-    def encodeEquivalence(self, nn1, nn2, withOneHot=False):
-        layers1, los1, his1 = nn1
-        layers2, los2, his2 = nn2
+    def encodeEquivalence(self, layers1, layers2, input_lowerBounds, input_upperBounds, withOneHot=False):
+        self.encodeInputsReadable(input_lowerBounds, input_upperBounds, 'I')
+        inputVars = self.vars[-1]
 
-        encNN1 = self.encodeAllLayers(layers1, los1, his1, 'A', withOneHot)
+        encNN1 = self.encodeAllLayers(layers1, 'A', withOneHot)
         nn1Outs = self.vars[-1]
 
-        encNN2 = self.encodeAllLayers(layers2, los2, his2, 'B', withOneHot)
+        # only need to encode input vars once for both nets,
+        # remember position in list, so we can delete duplicate later
+        lengthNN1 = len(self.vars)
+        self.vars.append(inputVars)
+
+        encNN2 = self.encodeAllLayers(layers2, 'B', withOneHot)
         nn2Outs = self.vars[-1]
+
+        # remove duplicate input vars
+        del self.vars[lengthNN1]
 
         if not len(nn1Outs) == len(nn2Outs):
              raise IOError('only NNs with equal number of outputs can be equivalent')
 
         eqConstraints = '; --- Equality Constraints --- '
+        u = 99999
+        l = -99999
+        deltas = []
         for out1, out2 in zip(nn1Outs, nn2Outs):
-            eqConstraints += '\n' + self.makeEq(out1.name, out2.name)
+            # out1 - out2 should be 0, if they are equal
+            diff = self.makeSum([out1.name, self.makeNeg(out2.name)])
+
+            deltaG0 = Variable(0, out1.row, 'E', 'dG0', 'Int')
+            deltaG0.setLo(0)
+            deltaG0.setHi(1)
+            deltas.append(deltaG0)
+
+            eqConstraints += '\n' + self.makeLeq(diff, self.makeMult(str(u), deltaG0.name))
+            eqConstraints += '\n' + self.makeGt(diff, self.makeSum([str(l), self.makeNeg(self.makeMult(str(l), deltaG0.name))]))
+
+            deltaL0 = Variable(0, out1.row, 'E', 'dL0', 'Int')
+            deltaL0.setLo(0)
+            deltaL0.setHi(1)
+            deltas.append(deltaL0)
+
+            eqConstraints += '\n' + self.makeLt(diff, self.makeSum([str(u), self.makeNeg(self.makeMult(str(u), deltaL0.name))]))
+            eqConstraints += '\n' + self.makeGeq(diff, self.makeMult(str(l), deltaL0.name))
+
+        # at least one of the not-equals should be true
+        eqConstraints += '\n' + self.makeGeq(self.makeSum([delta.name for delta in deltas]), str(1))
+
+        self.vars.append(deltas)
 
         preamble = self.makePreambleReadable()
         suffix = self.makeSuffix()
