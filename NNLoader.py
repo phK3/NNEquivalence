@@ -3,7 +3,11 @@ from abc import ABC, abstractmethod
 
 class NNLoader(ABC):
 
-    def __init__(self, file):
+    def __init__(self):
+        pass
+
+    @abstractmethod
+    def load(self, filename):
         pass
 
     @abstractmethod

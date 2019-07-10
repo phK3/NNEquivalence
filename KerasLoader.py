@@ -1,4 +1,4 @@
-import NNLoader
+from NNLoader import NNLoader
 
 from json import loads
 import h5py
@@ -49,10 +49,11 @@ class KerasLoader(NNLoader):
         for layer in self.layers:
             layer_weights_dict = model_weights_dict[layer.name]
             weight_names = layer_weights_dict.attrs['weight_names']
-            w = layer_weights_dict[weight_names[0]].value
-            b = layer_weights_dict[weight_names[1]].value
+            # [()] converts the dataset to a numpy array
+            # (as would have done ds.value, but this is deprecated
+            w = layer_weights_dict[weight_names[0]][()]
+            b = layer_weights_dict[weight_names[1]][()]
             layer.weights = np.vstack((w, b))
-
 
     def getNumLayers(self):
         return len(self.layers)
