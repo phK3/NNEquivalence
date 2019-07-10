@@ -1,4 +1,4 @@
-from NNLoader import NNLoader
+from nn_loader import NNLoader
 
 from json import loads
 import h5py

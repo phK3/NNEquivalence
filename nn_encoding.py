@@ -1,6 +1,5 @@
-import numpy as np
-from Variable import *
-import NNLoader
+from variable import *
+import nn_loader
 
 
 # flatten list of lists
