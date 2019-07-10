@@ -1,6 +1,6 @@
 import numpy as np
 from Variable import *
-import NNFileAccess
+import NNLoader
 
 
 # flatten list of lists
