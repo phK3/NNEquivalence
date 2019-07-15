@@ -34,3 +34,8 @@ class NNLoader(ABC):
     @abstractmethod
     def getWeights(self, layer):
         pass
+
+    # returns all of the hidden layers in format [(activation, numNeurons, weights)]
+    @abstractmethod
+    def getHiddenLayers(self):
+        pass

@@ -79,3 +79,13 @@ class KerasLoader(NNLoader):
     # weights to layer before, bias at last row of matrix
     def getWeights(self, layer):
         return self.layers[layer].weights
+
+    def getHiddenLayers(self):
+        layers = []
+        for i in range(0, self.getNumLayers()):
+            activation = self.getActivationFunction(i)
+            numNeurons = self.getNumNeurons(i)
+            weights = self.getWeights(i)
+            layers.append((activation, numNeurons, weights))
+
+        return layers
