@@ -197,9 +197,16 @@ class NNEncoder:
         for activation, numNeurons, weights in layers:
             index += 1
             linearEnc = self.encodeLinearLayer(weights, numNeurons, index, netPrefix)
-            # only for ReLU for now, need other function encoders for different activation functions
-            activationEnc = self.encodeActivationLayer(numNeurons, index, netPrefix, self.encodeRelu)
-            layersEnc += '\n' + linearEnc + '\n' + activationEnc
+            # only for ReLU and linear for now, need other function encoders for different activation functions
+            layersEnc += '\n' + linearEnc
+            if activation == 'relu':
+                activationEnc = '\n' + self.encodeActivationLayer(numNeurons, index, netPrefix, self.encodeRelu)
+            elif activation == 'linear':
+                # only here for completeness, no activation function applied in linear layer
+                pass
+
+            # make sure activationEnc is with leading '\n'
+            layersEnc += activationEnc
 
         if withOneHot:
             layersEnc += '\n' + self.encodeOneHotLayerReadable(len(layers) + 1, netPrefix)
