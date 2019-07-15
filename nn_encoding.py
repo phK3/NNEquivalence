@@ -1,4 +1,5 @@
 from variable import *
+from numpy import format_float_positional as ffp
 import nn_loader
 
 
@@ -73,8 +74,8 @@ class NNEncoder:
         for i in range(0, numNeurons):
             var = Variable(layerIndex, i, netPrefix, 'x')
             currentNeurons.append(var)
-            terms = [self.makeMult(str(weights[row][i]), prevNeurons[row].name) for row in range(0, prevNum)]
-            terms.append(str(weights[-1][i]))
+            terms = [self.makeMult(ffp(weights[row][i]), prevNeurons[row].name) for row in range(0, prevNum)]
+            terms.append(ffp(weights[-1][i]))
             enc += '\n' + self.makeEq(var.name, self.makeSum(terms))
 
         self.vars.append(currentNeurons)
@@ -115,11 +116,11 @@ class NNEncoder:
 
         m = 99999
 
-        md = self.makeMult(str(m), delta.name)
+        md = self.makeMult(ffp(m), delta.name)
         enc += '\n' + self.makeGeq(outNeuron.name, maxVarA.name)
         enc += '\n' + self.makeGeq(outNeuron.name, maxVarB.name)
         enc += '\n' + self.makeLeq(outNeuron.name, self.makeSum([maxVarA.name, md]))
-        enc += '\n' + self.makeLeq(outNeuron.name, self.makeSum([maxVarB.name, str(m), self.makeNeg(md)]))
+        enc += '\n' + self.makeLeq(outNeuron.name, self.makeSum([maxVarB.name, ffp(m), self.makeNeg(md)]))
 
         return (enc, vars)
 
@@ -138,13 +139,13 @@ class NNEncoder:
 
         # later use bound on sn for m
         m = 99999
-        dm = self.makeMult(str(m), delta.name)
+        dm = self.makeMult(ffp(m), delta.name)
 
         enc += self.makeGeq(outNeuron.name, '0')
         enc += '\n' + self.makeGeq(outNeuron.name, inNeuron.name)
         enc += '\n' + self.makeLeq(self.makeSum([inNeuron.name, self.makeNeg(dm)]), '0')
-        enc += '\n' + self.makeGeq(self.makeSum([inNeuron.name, str(m), self.makeNeg(dm)]), '0')
-        enc += '\n' + self.makeLeq(outNeuron.name, self.makeSum([inNeuron.name, str(m), self.makeNeg(dm)]))
+        enc += '\n' + self.makeGeq(self.makeSum([inNeuron.name, ffp(m), self.makeNeg(dm)]), '0')
+        enc += '\n' + self.makeLeq(outNeuron.name, self.makeSum([inNeuron.name, ffp(m), self.makeNeg(dm)]))
         enc += '\n' + self.makeLeq(outNeuron.name, dm)
 
         return (enc, [delta])
@@ -180,9 +181,9 @@ class NNEncoder:
             for var in list:
                 decls += '\n' + '(declare-const ' + var.name + ' ' + var.type + ')'
                 if var.hasHi:
-                    bounds += '\n' + self.makeLeq(var.name, str(var.hi))
+                    bounds += '\n' + self.makeLeq(var.name, ffp(var.hi))
                 if var.hasLo:
-                    bounds += '\n' + self.makeGeq(var.name, str(var.lo))
+                    bounds += '\n' + self.makeGeq(var.name, ffp(var.lo))
 
         return preamble + decls + '\n; ---- Bounds ----' + bounds
 
@@ -245,8 +246,8 @@ class NNEncoder:
             diffConstraints += '\n' + self.makeEq(diff.name,
                                                   self.makeSum([inNeuron.name, self.makeNeg(maxNeuron.name)]))
 
-            enc += '\n' + self.makeGt(self.makeMult(str(diff.hi), out.name), diff.name)
-            sum = self.makeSum([str(diff.lo), self.makeNeg(self.makeMult(str(diff.lo), out.name))])
+            enc += '\n' + self.makeGt(self.makeMult(ffp(diff.hi), out.name), diff.name)
+            sum = self.makeSum([str(diff.lo), self.makeNeg(self.makeMult(ffp(diff.lo), out.name))])
             enc += '\n' + self.makeGeq(diff.name, sum)
 
         self.vars.append(maxVars)
@@ -310,19 +311,19 @@ class NNEncoder:
             deltaG0.setHi(1)
             deltas.append(deltaG0)
 
-            eqConstraints += '\n' + self.makeLeq(diff, self.makeMult(str(u), deltaG0.name))
-            eqConstraints += '\n' + self.makeGt(diff, self.makeSum([str(l), self.makeNeg(self.makeMult(str(l), deltaG0.name))]))
+            eqConstraints += '\n' + self.makeLeq(diff, self.makeMult(ffp(u), deltaG0.name))
+            eqConstraints += '\n' + self.makeGt(diff, self.makeSum([ffp(l), self.makeNeg(self.makeMult(ffp(l), deltaG0.name))]))
 
             deltaL0 = Variable(0, out1.row, 'E', 'dL0', 'Int')
             deltaL0.setLo(0)
             deltaL0.setHi(1)
             deltas.append(deltaL0)
 
-            eqConstraints += '\n' + self.makeLt(diff, self.makeSum([str(u), self.makeNeg(self.makeMult(str(u), deltaL0.name))]))
-            eqConstraints += '\n' + self.makeGeq(diff, self.makeMult(str(l), deltaL0.name))
+            eqConstraints += '\n' + self.makeLt(diff, self.makeSum([ffp(u), self.makeNeg(self.makeMult(ffp(u), deltaL0.name))]))
+            eqConstraints += '\n' + self.makeGeq(diff, self.makeMult(ffp(l), deltaL0.name))
 
         # at least one of the not-equals should be true
-        eqConstraints += '\n' + self.makeGeq(self.makeSum([delta.name for delta in deltas]), str(1))
+        eqConstraints += '\n' + self.makeGeq(self.makeSum([delta.name for delta in deltas]), ffp(1))
 
         self.vars.append(deltas)
 
