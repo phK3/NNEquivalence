@@ -203,7 +203,8 @@ class NNEncoder:
                 activationEnc = '\n' + self.encodeActivationLayer(numNeurons, index, netPrefix, self.encodeRelu)
             elif activation == 'linear':
                 # only here for completeness, no activation function applied in linear layer
-                pass
+                # can't use pass!!! (then activationEnc of previous layer is printed)
+                activationEnc = ''
 
             # make sure activationEnc is with leading '\n'
             layersEnc += activationEnc
