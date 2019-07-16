@@ -344,52 +344,6 @@ class Relu(Expression):
         return str(self.output) + ' =  ReLU(' + str(self.input) + ')'
 
 
-class MaxPool(Expression):
-
-    def __init__(self, terms, output):
-        net, layer, row = output.getIndex()
-        super(MaxPool, self).__init__(net, layer, row)
-        self.terms = terms
-        self.output = output
-        self.lo = -default_bound
-        self.hi = default_bound
-
-        self.maxxes = []
-        if len(self.terms) == 1:
-            self.maxxes.append(self.terms[0])
-        elif len(self.terms) == 2:
-
-
-    def tighten_interval(self):
-        # tighten intervals of recursive maxxes
-        l = max([term.getLo() for term in self.terms])
-        h = max([term.getHi() for term in self.terms])
-        self.output.update_bounds(l, h)
-        super(MaxPool, self).update_bounds(l, h)
-
-    def getLo(self):
-        return self.lo
-
-    def getHi(self):
-        return self.hi
-
-    def to_smtlib(self):
-        enc = ''
-        if len(self.terms) == 1:
-            enc += makeEq(self.output.to_smtlib(), self.terms[0].to_smtlib())
-            return enc
-        if len(self.terms) == 2:
-
-
-    def __repr__(self):
-        s = str(self.output) + ' = MaxPool(' + str(self.terms[0])
-        for term in self.terms[1:]:
-            s += ', ' + str(term)
-
-        s += ')'
-        return s
-
-
 class Max(Expression):
 
     def __init__(self, in_a, in_b, output, delta):
