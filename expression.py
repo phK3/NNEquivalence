@@ -406,6 +406,11 @@ def encodeNN(layers, input_lower_bounds, input_upper_bounds, net_prefix):
     return vars, constraints
 
 
+def interval_arithmetic(constraints):
+    for c in flatten(constraints):
+        c.tighten_interval()
+
+
 def encodeExampleFixed():
     input_lower_bounds = [0 ,1, 2]
     input_upper_bounds = [1, 2, 3]
