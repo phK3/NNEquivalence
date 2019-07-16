@@ -1,5 +1,6 @@
 
 from expression import Variable, Linear, Relu, Max, Multiplication, Constant, Sum
+from keras_loader import KerasLoader
 
 
 def flatten(list):
@@ -119,6 +120,15 @@ def encodeNN(layers, input_lower_bounds, input_upper_bounds, net_prefix):
             invars = linvars
 
     return vars, constraints
+
+
+def encode_from_file(path, input_lower_bounds, input_upper_bounds):
+    kl = KerasLoader()
+    kl.load(path)
+
+    layers = kl.getHiddenLayers()
+
+    return encodeNN(layers, input_lower_bounds, input_upper_bounds, '')
 
 
 def interval_arithmetic(constraints):

@@ -1,6 +1,7 @@
 
 from expression_encoding import encodeNN, encode_maxpool_layer, encode_inputs, \
     pretty_print, interval_arithmetic, encode_linear_layer, encode_relu_layer
+from keras_loader import KerasLoader
 
 
 
@@ -59,3 +60,18 @@ def encodeExample():
     for out, delta in zip(reluouts, reludeltas):
         print(str(out) + ': [' + str(out.getLo()) + ', ' + str(out.getHi()) + ']')
         print(str(delta) + ': [' + str(delta.getLo()) + ', ' + str(delta.getHi()) + ']')
+
+def exampleEncodeSimpleCancer():
+    # encode simple cancer classifier
+    # result for given input should be 19.67078
+    kl = KerasLoader()
+    kl.load('ExampleNNs/cancer_simple_lin.h5')
+
+    inputs = [8, 10, 10, 8, 6, 9, 3, 10, 10]
+    layers = kl.getHiddenLayers()
+
+    vars, constraints = encodeNN(layers, inputs, inputs, '')
+
+    interval_arithmetic(constraints)
+
+    pretty_print(vars, constraints)
