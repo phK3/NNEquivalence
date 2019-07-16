@@ -4,6 +4,8 @@ import numbers
 
 default_bound = 999999
 
+def flatten(list):
+    return [x for sublist in list for x in sublist]
 
 def makeLeq(lhs, rhs):
     return '(assert (<= ' + lhs + ' ' + rhs + '))'
@@ -324,17 +326,17 @@ class Relu(Expression):
 
     def to_smtlib(self):
         # maybe better with asymmetric bounds
-        m = max(abs(self.input.getLo), abs(self.input.getHi))
+        m = max(abs(self.input.getLo()), abs(self.input.getHi()))
 
         dm = Multiplication(Constant(m, self.net, self.layer, self.row), self.delta)
-        inOneMinusDM = Sum([input, Constant(m, self.net, self.layer, self.row), Neg(dm)])
+        inOneMinusDM = Sum([self.input, Constant(m, self.net, self.layer, self.row), Neg(dm)])
 
-        enc  = makeGeq(self.output.to_smtlib, '0')
-        enc += '\n' + makeGeq(self.output.to_smtlib, self.input.to_smtlib())
-        enc += '\n' + makeLeq(Sum([self.input, Neg(dm)]), '0')
-        enc += '\n' + makeGeq(inOneMinusDM, '0')
-        enc += '\n' + makeLeq(self.output.to_smtlib(), inOneMinusDM)
-        enc += '\n' + makeLeq(self.output.to_smtlib(), dm)
+        enc  = makeGeq(self.output.to_smtlib(), '0')
+        enc += '\n' + makeGeq(self.output.to_smtlib(), self.input.to_smtlib())
+        enc += '\n' + makeLeq(Sum([self.input, Neg(dm)]).to_smtlib(), '0')
+        enc += '\n' + makeGeq(inOneMinusDM.to_smtlib(), '0')
+        enc += '\n' + makeLeq(self.output.to_smtlib(), inOneMinusDM.to_smtlib())
+        enc += '\n' + makeLeq(self.output.to_smtlib(), dm.to_smtlib())
 
         return enc
 
@@ -378,6 +380,71 @@ def encode_relu_layer(prev_neurons, layerIndex, netPrefix):
 
     return outs, deltas, ineqs
 
+def encodeNN(layers, input_lower_bounds, input_upper_bounds, net_prefix):
+    vars = []
+    constraints = []
+
+    invars = encode_inputs(input_lower_bounds, input_upper_bounds)
+    vars.append(invars)
+
+    for i, (activation, num_neurons, weights) in enumerate(layers):
+        linvars, eqs = encode_linear_layer(invars, weights, num_neurons, i, net_prefix)
+        vars.append(linvars)
+        constraints.append(eqs)
+
+        if activation == 'relu':
+            reluouts, reludeltas, reluineqs = encode_relu_layer(linvars, num_neurons, net_prefix)
+
+            vars.append(reluouts)
+            vars.append(reludeltas)
+            constraints.append(reluineqs)
+
+            invars = reluouts
+        elif activation == 'linear':
+            invars = linvars
+
+    return vars, constraints
+
+
+def encodeExampleFixed():
+    input_lower_bounds = [0 ,1, 2]
+    input_upper_bounds = [1, 2, 3]
+    weights = [[1, 5], [2, 6], [3, 7], [4, 8]]
+    layers = [('relu', 2, weights)]
+
+    vars, constraints = encodeNN(layers, input_lower_bounds, input_upper_bounds, '')
+
+    return vars, constraints
+
+
+def pretty_print(vars, constraints):
+    print('### Vars ###')
+    for var in flatten(vars):
+        print(str(var) + ': [' + str(var.getLo()) + ', ' + str(var.getHi()) + ']')
+
+    print('### Constraints ###')
+    for c in flatten(constraints):
+        print(c)
+
+
+def print_to_smtlib(vars, constraints):
+    preamble = '(set-option :produce-models true)\n(set-logic AUFLIRA)'
+    suffix = '(check-sat)\n(get-model)'
+    decls = '; ### Variable declarations ###'
+    bounds = '; ### Variable bounds ###'
+
+    for var in flatten(vars):
+        decls += '\n' + var.get_smtlib_decl()
+        bound = var.get_smtlib_bounds()
+        if not bound == '':
+            bounds += '\n' + var.get_smtlib_bounds()
+
+    consts = '; ### Constraints ###'
+
+    for c in flatten(constraints):
+        consts += '\n' + c.to_smtlib()
+
+    return preamble + '\n' + decls + '\n' + bounds + '\n' + consts + '\n' + suffix
 
 def encodeExample():
     invars = encode_inputs([0,1,2], [1,2,3])
