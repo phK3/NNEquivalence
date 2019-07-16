@@ -406,7 +406,7 @@ class Max(Expression):
         return enc
 
     def __repr__(self):
-        return 'max(' + str(self.in_a) + ', ' + str(self.in_b) + ')'
+        return str(self.output) +  ' = max(' + str(self.in_a) + ', ' + str(self.in_b) + ')'
 
 
 
@@ -454,20 +454,21 @@ def encode_maxpool_layer(prev_neurons, layerIndex, netPrefix):
 
     current_neurons = prev_neurons
     depth = 0
-    while len(current_neurons) > 2:
+    while len(current_neurons) >= 2:
         current_depth_outs = []
         for i in range(0, len(current_neurons), 2):
             if i + 1 >= len(current_neurons):
-                out = prev_neurons[i]
+                out = current_neurons[i]
+                current_depth_outs.append(out)
+                # don't append to outs as already has constraint
             else:
                 out = Variable(layerIndex, 0, netPrefix, 'o_' + str(depth))
                 delta = Variable(layerIndex, 0, netPrefix, out.name + '_d', 'Int')
-                ineq = Max(prev_neurons[i], prev_neurons[i + 1], out, delta)
+                ineq = Max(current_neurons[i], current_neurons[i + 1], out, delta)
                 ineqs.append(ineq)
                 deltas.append(delta)
-
-            current_depth_outs.append(out)
-            outs.append(out)
+                current_depth_outs.append(out)
+                outs.append(out)
 
         current_neurons = current_depth_outs
         depth += 1
