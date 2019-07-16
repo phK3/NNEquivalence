@@ -546,6 +546,19 @@ def print_to_smtlib(vars, constraints):
 
     return preamble + '\n' + decls + '\n' + bounds + '\n' + consts + '\n' + suffix
 
+def encodeMaxpoolExample():
+    invars = encode_inputs([0,1,2], [1,2,3])
+    outs, deltas, ineqs = encode_maxpool_layer(invars, 1, '')
+
+    vars = [invars, deltas, outs]
+    constraints = [ineqs]
+
+    pretty_print(vars, constraints)
+
+    print('### now with interval arithmetic ###')
+    interval_arithmetic(constraints)
+    pretty_print(vars, constraints)
+
 def encodeExample():
     invars = encode_inputs([0,1,2], [1,2,3])
 
