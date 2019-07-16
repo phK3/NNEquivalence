@@ -162,15 +162,12 @@ class Sum(Expression):
         self.hi = default_bound
 
     def tighten_interval(self):
-        print('sum.tighten_interval called')
         l = 0
         h = 0
         for term in self.children:
+            term.tighten_interval()
             l += term.getLo()
             h += term.getHi()
-
-        # TODO: find bug, that makes l, h so big
-        print('[l, h] = ' + str(l) + ', ' + str(h))
 
         super(Sum, self).update_bounds(l, h)
 
@@ -267,7 +264,6 @@ class Linear(Expression):
         self.hi = input.getHi()
 
     def tighten_interval(self):
-        print('Linear.tighten_interval called!!!')
         self.input.tighten_interval()
         l = self.input.getLo()
         h = self.input.getHi()
@@ -301,22 +297,24 @@ class Relu(Expression):
         self.delta.setHi(1)
 
     def tighten_interval(self):
+        self.input.tighten_interval()
         h = self.input.getHi()
         l = self.input.getLo()
         if h <= 0:
             # ReLU inactive delta=0
             self.hi = 0
             self.lo = 0
+            self.output.update_bounds(0,0)
             self.delta.update_bounds(0,0)
         elif l > 0:
             # ReLU active delta=1
-            if l > self.lo: self.lo = l
-            if h < self.hi: self.hi = h
+            super(Relu, self).update_bounds(l, h)
+            self.output.update_bounds(l, h)
             self.delta.update_bounds(1,1)
         else:
             # don't know inactive/active
-            if l > self.lo: self.lo = l
-            if h < self.hi: self.hi = h
+            super(Relu, self).update_bounds(l, h)
+            self.output.update_bounds(l, h)
 
     def getLo(self):
         return self.lo
@@ -392,7 +390,8 @@ def encodeExample():
 
     reluouts, reludeltas, ineqs = encode_relu_layer(linvars, 2, '')
 
-
+    for relu in ineqs:
+        relu.tighten_interval()
 
 
     print('### invars ###')
