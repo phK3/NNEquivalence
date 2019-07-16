@@ -344,6 +344,118 @@ class Relu(Expression):
         return str(self.output) + ' =  ReLU(' + str(self.input) + ')'
 
 
+class MaxPool(Expression):
+
+    def __init__(self, terms, output):
+        net, layer, row = output.getIndex()
+        super(MaxPool, self).__init__(net, layer, row)
+        self.terms = terms
+        self.output = output
+        self.lo = -default_bound
+        self.hi = default_bound
+
+        self.maxxes = []
+        if len(self.terms) == 1:
+            self.maxxes.append(self.terms[0])
+        elif len(self.terms) == 2:
+
+
+    def tighten_interval(self):
+        # tighten intervals of recursive maxxes
+        l = max([term.getLo() for term in self.terms])
+        h = max([term.getHi() for term in self.terms])
+        self.output.update_bounds(l, h)
+        super(MaxPool, self).update_bounds(l, h)
+
+    def getLo(self):
+        return self.lo
+
+    def getHi(self):
+        return self.hi
+
+    def to_smtlib(self):
+        enc = ''
+        if len(self.terms) == 1:
+            enc += makeEq(self.output.to_smtlib(), self.terms[0].to_smtlib())
+            return enc
+        if len(self.terms) == 2:
+
+
+    def __repr__(self):
+        s = str(self.output) + ' = MaxPool(' + str(self.terms[0])
+        for term in self.terms[1:]:
+            s += ', ' + str(term)
+
+        s += ')'
+        return s
+
+
+class Max(Expression):
+
+    def __init__(self, in_a, in_b, output, delta):
+        net, layer, row = output.getIndex()
+        super(Max, self).__init__(net, layer, row)
+        self.output = output
+        self.in_a = in_a
+        self.in_b = in_b
+        self.lo = -default_bound
+        self.hi = default_bound
+        self.delta = delta
+        self.delta.setLo(0)
+        self.delta.setHi(1)
+
+    def tighten_interval(self):
+        la = self.in_a.getLo()
+        ha = self.in_a.getHi()
+        lb = self.in_b.getLo()
+        hb = self.in_b.getHi()
+
+        if la > hb:
+            # a is maximum
+            self.output.update_bounds(la, ha)
+            self.delta.update_bounds(0,0)
+            super(Max, self).update_bounds(la, ha)
+        elif lb > ha:
+            # b is maximum
+            self.output.update_bounds(lb, hb)
+            self.delta.update_bounds(1,1)
+            super(Max, self).update_bounds(lb, hb)
+        else:
+            # don't know which entry is max
+            l = max(la, lb)
+            h = max(ha, hb)
+            self.output.update_bounds(l, h)
+            super(Max, self).update_bounds(l, h)
+
+    def getLo(self):
+        return self.lo
+
+    def getHi(self):
+        return self.hi
+
+    def to_smtlib(self):
+        # maybe better with asymmetric bounds
+        la = self.in_a.getLo()
+        ha = self.in_a.getHi()
+        lb = self.in_b.getLo()
+        hb = self.in_b.getHi()
+        m = max(abs(la), abs(ha), abs(lb), abs(hb))
+
+        dm = Multiplication(Constant(m, self.net, self.layer, self.row), self.delta)
+        in_bOneMinusDM = Sum([self.in_b, Constant(m, self.net, self.layer, self.row), Neg(dm)])
+
+        enc  = makeGeq(self.output.to_smtlib(), self.in_a.to_smtlib())
+        enc += '\n' + makeGeq(self.output.to_smtlib(), self.in_b.to_smtlib())
+        enc += '\n' + makeLeq(self.output.to_smtlib(), Sum([self.in_a, dm]).to_smtlib())
+        enc += '\n' + makeLeq(self.output.to_smtlib(), in_bOneMinusDM.to_smtlib())
+
+        return enc
+
+    def __repr__(self):
+        return 'max(' + str(self.in_a) + ', ' + str(self.in_b) + ')'
+
+
+
 def encode_inputs(lower_bounds, upper_bounds, netPrefix=''):
     vars = []
     for i, (l, h) in enumerate(zip(lower_bounds, upper_bounds)):
@@ -377,6 +489,34 @@ def encode_relu_layer(prev_neurons, layerIndex, netPrefix):
         outs.append(output)
         deltas.append(delta)
         ineqs.append(Relu(neuron, output, delta))
+
+    return outs, deltas, ineqs
+
+
+def encode_maxpool_layer(prev_neurons, layerIndex, netPrefix):
+    deltas = []
+    outs = []
+    ineqs = []
+
+    current_neurons = prev_neurons
+    depth = 0
+    while len(current_neurons) > 2:
+        current_depth_outs = []
+        for i in range(0, len(current_neurons), 2):
+            if i + 1 >= len(current_neurons):
+                out = prev_neurons[i]
+            else:
+                out = Variable(layerIndex, 0, netPrefix, 'o_' + str(depth))
+                delta = Variable(layerIndex, 0, netPrefix, out.name + '_d', 'Int')
+                ineq = Max(prev_neurons[i], prev_neurons[i + 1], out, delta)
+                ineqs.append(ineq)
+                deltas.append(delta)
+
+            current_depth_outs.append(out)
+            outs.append(out)
+
+        current_neurons = current_depth_outs
+        depth += 1
 
     return outs, deltas, ineqs
 
