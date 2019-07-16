@@ -1,0 +1,117 @@
+sat
+(model
+  (define-fun i_0_1 () Real
+    1.0)
+  (define-fun d_8_1 () Int
+    0)
+  (define-fun i_0_8 () Real
+    (/ 16886641.0 4115831.0))
+  (define-fun o_8_3 () Real
+    (/ 2098534360991071.0 514478875000000.0))
+  (define-fun o_4_1 () Real
+    (/ 608160525500130807076467.0 411583100000000000000000.0))
+  (define-fun d_8_7 () Int
+    1)
+  (define-fun i_0_7 () Real
+    1.0)
+  (define-fun o_8_2 () Real
+    (/ 201312445846397.0 257239437500000.0))
+  (define-fun o_4_0 () Real
+    0.0)
+  (define-fun d_8_6 () Int
+    1)
+  (define-fun o_8_5 () Real
+    0.0)
+  (define-fun o_4_2 () Real
+    (/ 752291101261264224021939681.0 41158310000000000000000000.0))
+  (define-fun d_8_5 () Int
+    0)
+  (define-fun i_0_4 () Real
+    10.0)
+  (define-fun d_8_3 () Int
+    1)
+  (define-fun d_4_3 () Int
+    1)
+  (define-fun o_8_0 () Real
+    (/ 1833315626782323.0 411583100000000.0))
+  (define-fun d_4_2 () Int
+    1)
+  (define-fun d_4_0 () Int
+    0)
+  (define-fun d_8_2 () Int
+    1)
+  (define-fun o_8_1 () Real
+    0.0)
+  (define-fun o_8_7 () Real
+    (/ 8845925335679773.0 2057915500000000.0))
+  (define-fun i_0_3 () Real
+    1.0)
+  (define-fun o_4_3 () Real
+    (/ 7519485512509849547545023.0 4115831000000000000000000.0))
+  (define-fun d_4_1 () Int
+    1)
+  (define-fun i_0_5 () Real
+    1.0)
+  (define-fun o_8_6 () Real
+    (/ 38387156001187199.0 8231662000000000.0))
+  (define-fun i_0_2 () Real
+    1.0)
+  (define-fun i_0_6 () Real
+    8.0)
+  (define-fun d_8_4 () Int
+    1)
+  (define-fun i_0_0 () Real
+    1.0)
+  (define-fun d_8_0 () Int
+    1)
+  (define-fun o_8_4 () Real
+    (/ 342803392649151.0 51447887500000.0))
+  (define-fun x_2_0 () Real
+    (- (/ 11969419965520488068671200933623689.0
+      1028957750000000000000000000000000.0)))
+  (define-fun x_1_3 () Real
+    (/ 7519485512509849547545023.0 4115831000000000000000000.0))
+  (define-fun x_1_2 () Real
+    (/ 752291101261264224021939681.0 41158310000000000000000000.0))
+  (define-fun x_1_1 () Real
+    (/ 608160525500130807076467.0 411583100000000000000000.0))
+  (define-fun x_1_0 () Real
+    (- (/ 227359835945762718234867.0 82316620000000000000000.0)))
+  (define-fun x_0_7 () Real
+    (/ 8845925335679773.0 2057915500000000.0))
+  (define-fun x_0_6 () Real
+    (/ 38387156001187199.0 8231662000000000.0))
+  (define-fun x_0_5 () Real
+    (- (/ 2067787780446749.0 514478875000000.0)))
+  (define-fun x_0_4 () Real
+    (/ 342803392649151.0 51447887500000.0))
+  (define-fun x_0_3 () Real
+    (/ 2098534360991071.0 514478875000000.0))
+  (define-fun x_0_2 () Real
+    (/ 201312445846397.0 257239437500000.0))
+  (define-fun x_0_1 () Real
+    0.0)
+  (define-fun x_0_0 () Real
+    (/ 1833315626782323.0 411583100000000.0))
+)
+(:add-rows        14172
+ :arith-conflicts 14
+ :assert-lower    101
+ :assert-upper    92
+ :conflicts       14
+ :decisions       36
+ :eliminated-vars 13
+ :final-checks    119
+ :gcd-tests       188
+ :gomory-cuts     28
+ :ineq-splits     34
+ :max-memory      3.10
+ :memory          2.05
+ :minimized-lits  5
+ :mk-clause       10
+ :num-allocs      856317.00
+ :pivots          698
+ :propagations    13
+ :rlimit-count    5886
+ :time            11.42
+ :total-time      11.44)
