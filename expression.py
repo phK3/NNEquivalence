@@ -279,7 +279,7 @@ class Linear(Expression):
         return self.hi
 
     def to_smtlib(self):
-        return '(= ' + self.output.to_smtlib() + ' ' + self.input.to_smtlib() + ')'
+        return makeEq(self.output.to_smtlib(), self.input.to_smtlib())
 
     def __repr__(self):
         return '(' + str(self.output) + ' = ' + str(self.input) + ')'
