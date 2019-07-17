@@ -1,6 +1,6 @@
 
 from expression_encoding import encodeNN, encode_maxpool_layer, encode_inputs, \
-    pretty_print, interval_arithmetic, encode_linear_layer, encode_relu_layer
+    pretty_print, interval_arithmetic, encode_linear_layer, encode_relu_layer, encode_from_file
 from keras_loader import KerasLoader
 
 
@@ -74,4 +74,19 @@ def exampleEncodeSimpleCancer():
 
     interval_arithmetic(constraints)
 
+    pretty_print(vars, constraints)
+
+
+def exampleEncodeCancer():
+    # not finished yet
+    input_los = [-2.019404, -2.272988, -1.977589, -1.426379, -3.176344, -1.664312, -1.125696, -1.262871, -2.738225,
+                 -1.865718e+00, -1.024522, -1.569514, -1.016081, -0.6933525, -1.862462, -1.304206, -1.012913, -1.977069,
+                 -1.544220, -1.080050, -1.704360, -2.218398, -1.673608, -1.188201, -2.711807, -1.468356, -1.341360,
+                 -1.754014, -2.128278, -1.598903]
+    input_his = [3.963628, 3.528104, 3.980919, 5.163006, 3.503046, 4.125777, 4.366097, 3.955644, 4.496561, 5.105021,
+                 8.697088, 6.788612, 9.410281, 10.52718, 5.747718, 6.308377, 11.73186, 6.984494, 4.999672, 10.02360,
+                 4.049783, 3.938555, 4.261315, 5.758096, 3.988374, 5.270909, 4.936910, 2.695096, 5.934052, 6.968987e+00]
+    input_benign_one_hi = input_his
+    input_benign_one_hi[3] = 0.945520
+    vars, constraints = encode_from_file('ExampleNNs/cancer_lin.h5', input_los, input_benign_one_hi)
     pretty_print(vars, constraints)
