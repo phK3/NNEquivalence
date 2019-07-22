@@ -464,3 +464,51 @@ class One_hot(Expression):
     def __repr__(self):
         return str(self.output) + ' = OneHot(' + str(self.input) + ')'
 
+
+class Greater_Zero(Expression):
+    # returns 1, iff input >= 0, 0 otherwise
+
+    def __init__(self, lhs, delta):
+        net, layer, row = delta.getIndex()
+        super(Greater_Zero, self).__init__(net, layer, row)
+        self.lhs = lhs
+        self.delta = delta
+        self.delta.setLo(0)
+        self.delta.setHi(1)
+        self.lo = 0
+        self.hi = 1
+
+    def tighten_interval(self):
+        self.lhs.tighten_interval()
+        l = self.lhs.getLo()
+        h = self.lhs.getHi()
+
+        if l > 0:
+            self.delta.update_bounds(1, 1)
+            super(Greater_Zero, self).update_bounds(1, 1)
+        elif h <= 0:
+            self.delta.update_bounds(0, 0)
+            super(Greater_Zero, self).update_bounds(0, 0)
+
+    def getLo(self):
+        return self.lo
+
+    def getHi(self):
+        return self.hi
+
+    def to_smtlib(self):
+        l = self.lhs.getLo_exclusive()
+        h = self.lhs.getHi()
+
+        hd = Multiplication(Constant(h, self.net, self.layer, self.row), self.delta)
+        l_const = Constant(l, self.net, self.layer, self.row)
+        ld = Multiplication(l_const, self.delta)
+
+        enc = makeLt(self.lhs.to_smtlib(), hd.to_smtlib())
+        enc += '\n' + makeGt(self.lhs.to_smtlib(), Sum([l_const, Neg(ld)]).to_smtlib())
+
+        return enc
+
+    def __repr__(self):
+        return str(self.lhs) + ' > 0'
+
