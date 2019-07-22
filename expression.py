@@ -50,13 +50,17 @@ class Expression(ABC):
     def to_smtlib(self):
         pass
 
-    @abstractmethod
     def getHi(self):
-        pass
+        return self.hi
 
-    @abstractmethod
     def getLo(self):
-        pass
+        return self.lo
+
+    def getLo_exclusive(self):
+        return self.lo - epsilon
+
+    def getHi_exclusive(self):
+        return self.hi + epsilon
 
     @abstractmethod
     def tighten_interval(self):
@@ -77,14 +81,10 @@ class Constant(Expression):
         # Any idea how to get rid of net, layer, row for constants?
         super(Constant, self).__init__(net, layer, row)
         self.value = value
+        self.hi = value
+        self.lo = value
         self.hasLo = True
         self.hasHi = True
-
-    def getHi(self):
-        return self.value
-
-    def getLo(self):
-        return self.value
 
     def tighten_interval(self):
         pass
@@ -122,18 +122,6 @@ class Variable(Expression):
 
     def tighten_interval(self):
         pass
-
-    def getLo(self):
-        return self.lo
-
-    def getHi(self):
-        return self.hi
-
-    def getLo_exclusive(self):
-        return self.lo - epsilon
-
-    def getHi_exclusive(self):
-        return self.hi + epsilon
 
     def to_smtlib(self):
         return self.name
@@ -181,12 +169,6 @@ class Sum(Expression):
 
         super(Sum, self).update_bounds(l, h)
 
-    def getLo(self):
-        return self.lo
-
-    def getHi(self):
-        return self.hi
-
     def to_smtlib(self):
         sum = '(+'
         for term in self.children:
@@ -210,8 +192,8 @@ class Neg(Expression):
         net, layer, row = input.getIndex()
         super(Neg, self).__init__(net, layer, row)
         self.input = input
-        self.hasHi = input.hasHi
-        self.hasLo = input.hasLo
+        self.hasHi = input.hasLo
+        self.hasLo = input.hasHi
         self.lo = -input.getHi()
         self.hi = -input.getLo()
 
@@ -219,12 +201,6 @@ class Neg(Expression):
         l = -self.input.getHi()
         h = -self.input.getLo()
         super(Neg, self).update_bounds(l, h)
-
-    def getHi(self):
-        return self.hi
-
-    def getLo(self):
-        return self.lo
 
     def to_smtlib(self):
         return '(- ' + self.input.to_smtlib() + ')'
@@ -251,12 +227,6 @@ class Multiplication(Expression):
 
         super(Multiplication, self).update_bounds(l, h)
 
-    def getHi(self):
-        return self.hi
-
-    def getLo(self):
-        return self.lo
-
     def to_smtlib(self):
         return '(* ' + self.constant.to_smtlib() + ' ' + self.variable.to_smtlib() + ')'
 
@@ -280,12 +250,6 @@ class Linear(Expression):
         h = self.input.getHi()
         super(Linear, self).update_bounds(l, h)
         self.output.update_bounds(l, h)
-
-    def getLo(self):
-        return self.lo
-
-    def getHi(self):
-        return self.hi
 
     def to_smtlib(self):
         return makeEq(self.output.to_smtlib(), self.input.to_smtlib())
@@ -326,12 +290,6 @@ class Relu(Expression):
             # don't know inactive/active
             super(Relu, self).update_bounds(l, h)
             self.output.update_bounds(l, h)
-
-    def getLo(self):
-        return self.lo
-
-    def getHi(self):
-        return self.hi
 
     def to_smtlib(self):
         # maybe better with asymmetric bounds
@@ -390,12 +348,6 @@ class Max(Expression):
             self.output.update_bounds(l, h)
             super(Max, self).update_bounds(l, h)
 
-    def getLo(self):
-        return self.lo
-
-    def getHi(self):
-        return self.hi
-
     def to_smtlib(self):
         # maybe better with asymmetric bounds
         la = self.in_a.getLo()
@@ -442,12 +394,6 @@ class One_hot(Expression):
         elif h_i < 0:
             self.output.update_bounds(0, 0)
             super(One_hot, self).update_bounds(0, 0)
-
-    def getLo(self):
-        return self.lo
-
-    def getHi(self):
-        return self.hi
 
     def to_smtlib(self):
         l_i = self.input.getLo()
