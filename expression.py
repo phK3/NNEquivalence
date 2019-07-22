@@ -416,3 +416,51 @@ class Max(Expression):
 
     def __repr__(self):
         return str(self.output) +  ' = max(' + str(self.in_a) + ', ' + str(self.in_b) + ')'
+
+
+class One_hot(Expression):
+    # returns 1, iff input >= 0, 0 otherwise
+
+    def __init__(self, input, output):
+        net, layer, row = output.getIndex()
+        super(One_hot, self).__init__(net, layer, row)
+        self.output = output
+        self.input = input
+        self.output.setLo(0)
+        self.output.setHi(1)
+        self.lo = 0
+        self.hi = 1
+
+    def tighten_interval(self):
+        self.input.tighten_interval()
+        l_i = self.input.getLo()
+        h_i = self.input.getHi()
+
+        if l_i >= 0:
+            self.output.update_bounds(1, 1)
+            super(One_hot, self).update_bounds(1, 1)
+        elif h_i < 0:
+            self.output.update_bounds(0, 0)
+            super(One_hot, self).update_bounds(0, 0)
+
+    def getLo(self):
+        return self.lo
+
+    def getHi(self):
+        return self.hi
+
+    def to_smtlib(self):
+        l_i = self.input.getLo()
+        h_i = self.input.getHi_exclusive()
+
+        h_i_out = Multiplication(Constant(h_i, self.net, self.layer, self.row), self.output)
+        l_i_out = Multiplication(Constant(l_i, self.net, self.layer, self.row), self.output)
+
+        enc = makeGt(h_i_out.to_smtlib(), self.input.to_smtlib())
+        enc += '\n' + makeGeq(self.input.to_smtlib(), Sum([self.input, Neg(l_i_out)]).to_smtlib())
+
+        return enc
+
+    def __repr__(self):
+        return str(self.output) + ' = OneHot(' + str(self.in_a) + ', ' + str(self.in_b) + ')'
+
