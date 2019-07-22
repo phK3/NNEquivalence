@@ -462,5 +462,5 @@ class One_hot(Expression):
         return enc
 
     def __repr__(self):
-        return str(self.output) + ' = OneHot(' + str(self.in_a) + ', ' + str(self.in_b) + ')'
+        return str(self.output) + ' = OneHot(' + str(self.input) + ')'
 

@@ -122,7 +122,7 @@ def encode_one_hot(prev_neurons, layerIndex, netPrefix):
         one_hot_constraints.append(One_hot(diff, output))
 
     constraints = ineqs + eqs + one_hot_constraints
-    return outs, (deltas + diffs), constraints
+    return outs, (deltas + diffs + max_outs), constraints
 
 
 def encodeNN(layers, input_lower_bounds, input_upper_bounds, net_prefix):
