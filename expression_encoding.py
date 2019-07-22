@@ -150,29 +150,11 @@ def encode_layers(input_vars, layers, net_prefix):
 
 
 def encodeNN(layers, input_lower_bounds, input_upper_bounds, net_prefix):
-    vars = []
-    constraints = []
-
     invars = encode_inputs(input_lower_bounds, input_upper_bounds)
-    vars.append(invars)
 
-    for i, (activation, num_neurons, weights) in enumerate(layers):
-        linvars, eqs = encode_linear_layer(invars, weights, num_neurons, i, net_prefix)
-        vars.append(linvars)
-        constraints.append(eqs)
+    layer_vars, layer_constrains = encode_layers(invars, layers, net_prefix)
 
-        if activation == 'relu':
-            reluouts, reludeltas, reluineqs = encode_relu_layer(linvars, num_neurons, net_prefix)
-
-            vars.append(reluouts)
-            vars.append(reludeltas)
-            constraints.append(reluineqs)
-
-            invars = reluouts
-        elif activation == 'linear':
-            invars = linvars
-
-    return vars, constraints
+    return [invars] + layer_vars, layer_constrains
 
 
 def encode_from_file(path, input_lower_bounds, input_upper_bounds):
