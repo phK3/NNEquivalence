@@ -3,6 +3,9 @@ from expression_encoding import encodeNN, encode_maxpool_layer, encode_inputs, \
     pretty_print, interval_arithmetic, encode_linear_layer, encode_relu_layer, \
     encode_from_file, encode_one_hot
 from keras_loader import KerasLoader
+import subprocess
+from os import path
+import datetime
 
 
 
@@ -105,3 +108,17 @@ def exampleEncodeCancer():
     input_benign_one_hi[3] = 0.945520
     vars, constraints = encode_from_file('ExampleNNs/cancer_lin.h5', input_los, input_benign_one_hi)
     pretty_print(vars, constraints)
+
+
+def example_runner():
+    example_files = ['ExampleNNs/smtlib_files/cancer_simple_lin_out_geq_zero2_no_xs.smt2']
+    output_dir = 'ExampleNNs/z3_outputs'
+
+    for path_to_file in example_files:
+        date = datetime.datetime.now().strftime("%d_%m_%Y_%H_%M_%S")
+        with open(path_to_file) as f:
+            f_name = path.basename(f.name)
+            save_name = output_dir + '/' + f_name.split('.')[0] + '_z3_output_' + date + '.txt'
+            with open(save_name, 'w') as out_file:
+                #print(s, file=out_file)
+                subprocess.call(['z3', '-st', path_to_file], stdout=out_file, stderr=out_file)
