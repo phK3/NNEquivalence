@@ -68,9 +68,16 @@ def encode_relu_layer(prev_neurons, layerIndex, netPrefix):
 
 
 def encode_maxpool_layer(prev_neurons, layerIndex, netPrefix):
+    # last variable in outs is output of maxpool
     deltas = []
     outs = []
     ineqs = []
+
+    if len(prev_neurons) == 1:
+        # will create duplicate bounds for input_var, but needed,
+        # s.t. other encodings can access output of this layer
+        # through the outs list.
+        return prev_neurons, deltas, ineqs
 
     current_neurons = prev_neurons
     depth = 0

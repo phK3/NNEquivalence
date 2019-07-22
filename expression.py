@@ -7,6 +7,7 @@ default_bound = 999999
 def flatten(list):
     return [x for sublist in list for x in sublist]
 
+
 def makeLeq(lhs, rhs):
     return '(assert (<= ' + lhs + ' ' + rhs + '))'
 
