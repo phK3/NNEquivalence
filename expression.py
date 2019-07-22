@@ -451,7 +451,7 @@ class Greater_Zero(Expression):
         return enc
 
     def __repr__(self):
-        return str(self.lhs) + ' > 0'
+        return str(self.lhs) + ' > 0 <==> ' + str(self.delta) + ' = 1'
 
 
 class Geq(Expression):

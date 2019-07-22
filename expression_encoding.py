@@ -219,7 +219,7 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
 
     eq_deltas, eq_diffs, eq_constraints = encode_equivalence_layer(net1_vars[-1], net2_vars[-1])
 
-    vars = net1_vars + net2_vars + [eq_diffs] + [eq_deltas]
+    vars = [invars] + net1_vars + net2_vars + [eq_diffs] + [eq_deltas]
     constraints = net1_constraints + net2_constraints + [eq_constraints]
 
     return vars, constraints
