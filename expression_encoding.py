@@ -1,5 +1,5 @@
 
-from expression import Variable, Linear, Relu, Max, Multiplication, Constant, Sum, Neg, One_hot
+from expression import Variable, Linear, Relu, Max, Multiplication, Constant, Sum, Neg, One_hot, Greater_Zero, Geq
 from keras_loader import KerasLoader
 
 
@@ -126,25 +126,46 @@ def encode_one_hot(prev_neurons, layerIndex, netPrefix):
 
 
 def encode_layers(input_vars, layers, net_prefix):
+
+    def hasLinear(activation):
+        if activation == 'one_hot':
+            return False
+        elif activation == 'relu':
+            return True
+        elif activation == 'linear':
+            return True
+
+
     vars = []
     constraints = []
 
     invars = input_vars
+    # output vars always appended last!
     for i, (activation, num_neurons, weights) in enumerate(layers):
-        linvars, eqs = encode_linear_layer(invars, weights, num_neurons, i, net_prefix)
-        vars.append(linvars)
-        constraints.append(eqs)
+        if hasLinear(activation):
+            linvars, eqs = encode_linear_layer(invars, weights, num_neurons, i, net_prefix)
+            vars.append(linvars)
+            constraints.append(eqs)
 
-        if activation == 'relu':
-            reluouts, reludeltas, reluineqs = encode_relu_layer(linvars, num_neurons, net_prefix)
+            if activation == 'relu':
+                reluouts, reludeltas, reluineqs = encode_relu_layer(linvars, num_neurons, net_prefix)
 
-            vars.append(reluouts)
-            vars.append(reludeltas)
-            constraints.append(reluineqs)
+                vars.append(reludeltas)
+                vars.append(reluouts)
+                constraints.append(reluineqs)
 
-            invars = reluouts
-        elif activation == 'linear':
-            invars = linvars
+                invars = reluouts
+            elif activation == 'linear':
+                invars = linvars
+        else:
+            # just use weights = None for one_hot layer
+            if activation == 'one_hot':
+                oh_outs, oh_vars, oh_constraints = encode_one_hot(invars, i, net_prefix)
+                vars.append(oh_vars)
+                vars.append(oh_outs)
+                constraints.append(oh_constraints)
+
+                invars = oh_outs
 
     return vars, constraints
 
@@ -155,6 +176,53 @@ def encodeNN(layers, input_lower_bounds, input_upper_bounds, net_prefix):
     layer_vars, layer_constrains = encode_layers(invars, layers, net_prefix)
 
     return [invars] + layer_vars, layer_constrains
+
+
+def encode_equivalence_layer(outs1, outs2, mode='normal'):
+    deltas = []
+    diffs = []
+    constraints = []
+
+    for i, (out1, out2) in enumerate(zip(outs1, outs2)):
+        delta_gt = Variable(0, i, 'E', 'dg', 'Int')
+        delta_lt = Variable(0, i, 'E', 'dl', 'Int')
+        diff = Variable(0, i, 'E', 'x')
+
+        deltas.append(delta_gt)
+        deltas.append(delta_lt)
+        diffs.append(diff)
+
+        constraints.append(Linear(Sum([out1, Neg(out2)]), diff))
+        constraints.append(Greater_Zero(diff, delta_gt))
+        constraints.append(Greater_Zero(Neg(diff), delta_lt))
+
+    constraints.append(Geq(Sum(deltas), Constant(1, 'E', 1, 0)))
+
+    return deltas, diffs, constraints
+
+
+def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds, with_one_hot = False):
+    if with_one_hot:
+        _, num_outs1, _ = layers1[-1]
+        _, num_outs2, _ = layers2[-1]
+
+        if not num_outs1 == num_outs2:
+            raise ValueError("both NNs must have the same number of outputs")
+
+        oh_layer = ('one_hot', num_outs1, None)
+        layers1.append(oh_layer)
+        layers2.append(oh_layer)
+
+    invars = encode_inputs(input_lower_bounds, input_upper_bounds)
+    net1_vars, net1_constraints = encode_layers(invars, layers1, 'A')
+    net2_vars, net2_constraints = encode_layers(invars, layers2, 'B')
+
+    eq_deltas, eq_diffs, eq_constraints = encode_equivalence_layer(net1_vars[-1], net2_vars[-1])
+
+    vars = net1_vars + net2_vars + [eq_diffs] + [eq_deltas]
+    constraints = net1_constraints + net2_constraints + [eq_constraints]
+
+    return vars, constraints
 
 
 def encode_from_file(path, input_lower_bounds, input_upper_bounds):
