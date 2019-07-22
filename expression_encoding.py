@@ -1,5 +1,5 @@
 
-from expression import Variable, Linear, Relu, Max, Multiplication, Constant, Sum
+from expression import Variable, Linear, Relu, Max, Multiplication, Constant, Sum, Neg, One_hot
 from keras_loader import KerasLoader
 
 
@@ -101,6 +101,28 @@ def encode_maxpool_layer(prev_neurons, layerIndex, netPrefix):
         depth += 1
 
     return outs, deltas, ineqs
+
+
+def encode_one_hot(prev_neurons, layerIndex, netPrefix):
+    max_outs, deltas, ineqs = encode_maxpool_layer(prev_neurons, layerIndex, netPrefix)
+    max_out = max_outs[-1]
+
+    outs = []
+    diffs = []
+    eqs = []
+    one_hot_constraints = []
+
+    for i, x in enumerate(prev_neurons):
+        output = Variable(layerIndex, i, netPrefix, 'o', 'Int')
+        diff = Variable(layerIndex, i, netPrefix, 'x')
+        outs.append(output)
+        diffs.append(diff)
+
+        eqs.append(Linear(Sum([x, Neg(max_out)]), diff))
+        one_hot_constraints.append(One_hot(diff, output))
+
+    constraints = ineqs + eqs + one_hot_constraints
+    return outs, (deltas + diffs), constraints
 
 
 def encodeNN(layers, input_lower_bounds, input_upper_bounds, net_prefix):
