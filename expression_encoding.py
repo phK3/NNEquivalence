@@ -125,6 +125,30 @@ def encode_one_hot(prev_neurons, layerIndex, netPrefix):
     return outs, (deltas + diffs + max_outs), constraints
 
 
+def encode_layers(input_vars, layers, net_prefix):
+    vars = []
+    constraints = []
+
+    invars = input_vars
+    for i, (activation, num_neurons, weights) in enumerate(layers):
+        linvars, eqs = encode_linear_layer(invars, weights, num_neurons, i, net_prefix)
+        vars.append(linvars)
+        constraints.append(eqs)
+
+        if activation == 'relu':
+            reluouts, reludeltas, reluineqs = encode_relu_layer(linvars, num_neurons, net_prefix)
+
+            vars.append(reluouts)
+            vars.append(reludeltas)
+            constraints.append(reluineqs)
+
+            invars = reluouts
+        elif activation == 'linear':
+            invars = linvars
+
+    return vars, constraints
+
+
 def encodeNN(layers, input_lower_bounds, input_upper_bounds, net_prefix):
     vars = []
     constraints = []
