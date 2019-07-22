@@ -400,10 +400,11 @@ class One_hot(Expression):
         h_i = self.input.getHi_exclusive()
 
         h_i_out = Multiplication(Constant(h_i, self.net, self.layer, self.row), self.output)
-        l_i_out = Multiplication(Constant(l_i, self.net, self.layer, self.row), self.output)
+        l_i_const = Constant(l_i, self.net, self.layer, self.row)
+        l_i_out = Multiplication(l_i_const, self.output)
 
         enc = makeGt(h_i_out.to_smtlib(), self.input.to_smtlib())
-        enc += '\n' + makeGeq(self.input.to_smtlib(), Sum([self.input, Neg(l_i_out)]).to_smtlib())
+        enc += '\n' + makeGeq(self.input.to_smtlib(), Sum([l_i_const, Neg(l_i_out)]).to_smtlib())
 
         return enc
 
@@ -412,7 +413,7 @@ class One_hot(Expression):
 
 
 class Greater_Zero(Expression):
-    # returns 1, iff input >= 0, 0 otherwise
+    # returns 1, iff lhs > 0, 0 otherwise
 
     def __init__(self, lhs, delta):
         net, layer, row = delta.getIndex()
@@ -436,12 +437,6 @@ class Greater_Zero(Expression):
             self.delta.update_bounds(0, 0)
             super(Greater_Zero, self).update_bounds(0, 0)
 
-    def getLo(self):
-        return self.lo
-
-    def getHi(self):
-        return self.hi
-
     def to_smtlib(self):
         l = self.lhs.getLo_exclusive()
         h = self.lhs.getHi()
@@ -450,11 +445,43 @@ class Greater_Zero(Expression):
         l_const = Constant(l, self.net, self.layer, self.row)
         ld = Multiplication(l_const, self.delta)
 
-        enc = makeLt(self.lhs.to_smtlib(), hd.to_smtlib())
+        enc = makeLeq(self.lhs.to_smtlib(), hd.to_smtlib())
         enc += '\n' + makeGt(self.lhs.to_smtlib(), Sum([l_const, Neg(ld)]).to_smtlib())
 
         return enc
 
     def __repr__(self):
         return str(self.lhs) + ' > 0'
+
+
+class Geq(Expression):
+    # TODO: no return value as no real expression, just a constraint (better idea where to put it?)
+    # could return 0/1 but would need more complicated delta stmt instead of just proxy for printing geq
+
+    def __init__(self, lhs, rhs):
+        net, layer, row = lhs.getIndex()
+        super(Geq, self).__init__(net, layer, row)
+        self.lhs = lhs
+        self.rhs = rhs
+        self.lo = 0
+        self.hi = 1
+
+    def tighten_interval(self):
+        self.lhs.tighten_interval()
+        self.rhs.tighten_interval()
+        llhs = self.lhs.getLo()
+        hlhs = self.lhs.getHi()
+        lrhs = self.rhs.getLo()
+        hrhs = self.rhs.getHi()
+
+        if llhs >= hrhs:
+            super(Geq, self).update_bounds(1, 1)
+        elif hlhs < lrhs:
+            super(Geq, self).update_bounds(0, 0)
+
+    def to_smtlib(self):
+        return makeGeq(self.lhs.to_smtlib(), self.rhs.to_smtlib())
+
+    def __repr__(self):
+        return str(self.lhs) + ' >= ' + str(self.rhs)
 
