@@ -1,6 +1,7 @@
 
 from expression_encoding import encodeNN, encode_maxpool_layer, encode_inputs, \
-    pretty_print, interval_arithmetic, encode_linear_layer, encode_relu_layer, encode_from_file
+    pretty_print, interval_arithmetic, encode_linear_layer, encode_relu_layer, \
+    encode_from_file, encode_one_hot
 from keras_loader import KerasLoader
 
 
@@ -25,7 +26,21 @@ def encodeMaxpoolExample():
 
     pretty_print(vars, constraints)
 
-    print('### now with interval arithmetic ###')
+    print('\n### now with interval arithmetic ###')
+    interval_arithmetic(constraints)
+    pretty_print(vars, constraints)
+
+
+def encodeOneHotExample():
+    invars = encode_inputs([-1, 0, 1], [-1, 0, 1])
+    outs, vars, constraints = encode_one_hot(invars, 1, '')
+
+    vars = [invars, vars, outs]
+    constraints = [constraints]
+
+    pretty_print(vars, constraints)
+
+    print('\n### now with interval arithmetic ###')
     interval_arithmetic(constraints)
     pretty_print(vars, constraints)
 
