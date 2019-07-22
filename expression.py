@@ -3,6 +3,7 @@ from numpy import format_float_positional as ffp
 import numbers
 
 default_bound = 999999
+epsilon = 1e-8
 
 def flatten(list):
     return [x for sublist in list for x in sublist]
@@ -127,6 +128,12 @@ class Variable(Expression):
 
     def getHi(self):
         return self.hi
+
+    def getLo_exclusive(self):
+        return self.lo - epsilon
+
+    def getHi_exclusive(self):
+        return self.hi + epsilon
 
     def to_smtlib(self):
         return self.name
