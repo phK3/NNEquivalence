@@ -1,7 +1,7 @@
 
 from expression_encoding import encodeNN, encode_maxpool_layer, encode_inputs, \
     pretty_print, interval_arithmetic, encode_linear_layer, encode_relu_layer, \
-    encode_from_file, encode_one_hot
+    encode_from_file, encode_one_hot, encode_equivalence, print_to_smtlib
 from keras_loader import KerasLoader
 import subprocess
 from os import path
@@ -46,6 +46,22 @@ def encodeOneHotExample():
     print('\n### now with interval arithmetic ###')
     interval_arithmetic(constraints)
     pretty_print(vars, constraints)
+
+
+def encodeEquivalenceExample():
+    inputs = [-3/2, 0]
+
+    weights1 = [[1,4], [2,5], [3,6]]
+    weights2 = [[1,5], [2,5], [3,6]]
+
+    layers1 = [('relu', 2, weights1)]
+    layers2 = [('relu', 2, weights2)]
+
+    vars, constraints = encode_equivalence(layers1, layers2, inputs, inputs)
+
+    pretty_print(vars, constraints)
+    print('\n### now smtlib ###\n')
+    print(print_to_smtlib(vars, constraints))
 
 
 def encodeExample():
