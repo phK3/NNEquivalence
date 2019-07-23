@@ -127,7 +127,7 @@ def exampleEncodeCancer():
 
 
 def example_runner():
-    example_files = ['ExampleNNs/smtlib_files/cancer_simple_lin_out_geq_zero2_no_xs.smt2']
+    example_files = ['ExampleNNs/smtlib_files/equiv_simple.smt2']
     output_dir = 'ExampleNNs/z3_outputs'
 
     for path_to_file in example_files:

@@ -2,6 +2,7 @@
 from expression import Variable, Linear, Relu, Max, Multiplication, Constant, Sum, Neg, One_hot, Greater_Zero, Geq
 from keras_loader import KerasLoader
 
+hide_non_deltas = True
 
 def flatten(list):
     return [x for sublist in list for x in sublist]
@@ -255,11 +256,23 @@ def print_to_smtlib(vars, constraints):
     decls = '; ### Variable declarations ###'
     bounds = '; ### Variable bounds ###'
 
+    def is_input_or_delta(var_name):
+        # distinguish deltas, inputs and other intermediate vars
+        # relies on convention, that only deltas contain d
+        # and only inputs contrain i
+        return 'd' in var_name or 'i' in var_name
+
     for var in flatten(vars):
         decls += '\n' + var.get_smtlib_decl()
         bound = var.get_smtlib_bounds()
         if not bound == '':
-            bounds += '\n' + var.get_smtlib_bounds()
+            if hide_non_deltas:
+                # TODO: find better way to exclude non-delta and input bounds
+                # independent of string representation
+                if is_input_or_delta(var.to_smtlib()):
+                    bounds += '\n' + var.get_smtlib_bounds()
+            else:
+                bounds += '\n' + var.get_smtlib_bounds()
 
     consts = '; ### Constraints ###'
 
