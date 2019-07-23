@@ -2,6 +2,8 @@
 from expression import Variable, Linear, Relu, Max, Multiplication, Constant, Sum, Neg, One_hot, Greater_Zero, Geq
 from keras_loader import KerasLoader
 
+# set this flag to only print bounds for deltas and inputs
+# (for smtlib format)
 hide_non_deltas = True
 
 def flatten(list):
@@ -259,7 +261,7 @@ def print_to_smtlib(vars, constraints):
     def is_input_or_delta(var_name):
         # distinguish deltas, inputs and other intermediate vars
         # relies on convention, that only deltas contain d
-        # and only inputs contrain i
+        # and only inputs contain i
         return 'd' in var_name or 'i' in var_name
 
     for var in flatten(vars):
