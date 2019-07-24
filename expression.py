@@ -1,9 +1,18 @@
 from abc import ABC, abstractmethod
-from numpy import format_float_positional as ffp
+from numpy import format_float_positional
 import numbers
 
 default_bound = 999999
 epsilon = 1e-8
+
+
+def ffp(x):
+    if x < 0:
+        s = format_float_positional(-x, trim='-')
+        return '(- ' + s + ')'
+    else:
+        return format_float_positional(x, trim='-')
+
 
 def flatten(list):
     return [x for sublist in list for x in sublist]
@@ -92,7 +101,10 @@ class Constant(Expression):
     def to_smtlib(self):
         s = None
         if isinstance(self.value, numbers.Integral):
-            s = str(self.value)
+            if self.value < 0:
+                s = '(- ' + str(-self.value) + ')'
+            else:
+                s = str(self.value)
         else:
             s = ffp(self.value)
 
