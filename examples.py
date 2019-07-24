@@ -121,22 +121,31 @@ def exampleEncodeCancer(with_interval_arithmetic=True):
     input_his = [3.963628, 3.528104, 3.980919, 5.163006, 3.503046, 4.125777, 4.366097, 3.955644, 4.496561, 5.105021,
                  8.697088, 6.788612, 9.410281, 10.52718, 5.747718, 6.308377, 11.73186, 6.984494, 4.999672, 10.02360,
                  4.049783, 3.938555, 4.261315, 5.758096, 3.988374, 5.270909, 4.936910, 2.695096, 5.934052, 6.968987]
-    input_benign_one_hi = input_his
+    input_malign_zero_lo = input_los
     # highest score in feature 3 for benign data is 0.945520 -> set input vector higher than that
     # -> if NN works correctly, then input should be classified as malign (label = 1)
-    input_benign_one_hi[3] = 1.25
-    vars, constraints = encode_from_file('ExampleNNs/cancer_lin.h5', input_los, input_benign_one_hi)
+    input_malign_zero_lo[0] = 1.1
+    input_malign_zero_lo[3] = 1.25
+    input_malign_zero_lo[4] = 2.96
+    input_malign_zero_lo[7] = 1.45
+    input_malign_zero_lo[20] = 0.9
+    vars, constraints = encode_from_file('ExampleNNs/cancer_lin.h5', input_malign_zero_lo, input_his)
 
-    interval_arithmetic(constraints)
+    if with_interval_arithmetic :
+        interval_arithmetic(constraints)
 
     pretty_print(vars, constraints)
 
     print('\n### smtlib ###\n')
+    # for proof that nn is correct manually insert constraint:
+    # (assert (<= x_3_0 0))
+    # if this can be satisfied, then a counterexample to correctness has been found
     print(print_to_smtlib(vars, constraints))
 
 
 def example_runner():
-    example_files = ['ExampleNNs/smtlib_files/equiv_simple.smt2']
+    example_files = ['ExampleNNs/smtlib_files/balance_scale_lin_eq_ia.smt2',
+                     'ExampleNNs/smtlib_files/balance_scale_lin_eq_no_ia.smt2']
     output_dir = 'ExampleNNs/z3_outputs'
 
     for path_to_file in example_files:
