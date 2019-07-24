@@ -1,0 +1,24 @@
+unsat
+(error "line 87 column 10: model is not available")
+(:add-rows        221
+ :arith-conflicts 9
+ :assert-lower    39
+ :assert-upper    34
+ :conflicts       9
+ :decisions       13
+ :del-clause      3
+ :eliminated-vars 6
+ :final-checks    33
+ :gcd-tests       41
+ :gomory-cuts     2
+ :ineq-splits     10
+ :max-memory      0.93
+ :memory          0.66
+ :minimized-lits  1
+ :mk-clause       3
+ :num-allocs      28548.00
+ :pivots          41
+ :propagations    4
+ :rlimit-count    1636
+ :time            0.01
+ :total-time      0.01)

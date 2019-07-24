@@ -1,0 +1,40 @@
+(error "line 24 column 26: invalid declaration, constant 'A_d_4_0' (with the given signature) already declared")
+(error "line 25 column 26: invalid declaration, constant 'A_d_4_1' (with the given signature) already declared")
+(error "line 26 column 26: invalid declaration, constant 'A_d_4_2' (with the given signature) already declared")
+(error "line 27 column 26: invalid declaration, constant 'A_d_4_3' (with the given signature) already declared")
+(error "line 28 column 27: invalid declaration, constant 'A_o_4_0' (with the given signature) already declared")
+(error "line 29 column 27: invalid declaration, constant 'A_o_4_1' (with the given signature) already declared")
+(error "line 30 column 27: invalid declaration, constant 'A_o_4_2' (with the given signature) already declared")
+(error "line 31 column 27: invalid declaration, constant 'A_o_4_3' (with the given signature) already declared")
+(error "line 61 column 26: invalid declaration, constant 'B_d_4_0' (with the given signature) already declared")
+(error "line 62 column 26: invalid declaration, constant 'B_d_4_1' (with the given signature) already declared")
+(error "line 63 column 26: invalid declaration, constant 'B_d_4_2' (with the given signature) already declared")
+(error "line 64 column 26: invalid declaration, constant 'B_d_4_3' (with the given signature) already declared")
+(error "line 65 column 27: invalid declaration, constant 'B_o_4_0' (with the given signature) already declared")
+(error "line 66 column 27: invalid declaration, constant 'B_o_4_1' (with the given signature) already declared")
+(error "line 67 column 27: invalid declaration, constant 'B_o_4_2' (with the given signature) already declared")
+(error "line 68 column 27: invalid declaration, constant 'B_o_4_3' (with the given signature) already declared")
+unsat
+(error "line 322 column 10: model is not available")
+(:add-rows        59419
+ :arith-conflicts 36
+ :assert-lower    195
+ :assert-upper    208
+ :conflicts       36
+ :decisions       186
+ :del-clause      12
+ :eliminated-vars 31
+ :final-checks    386
+ :gcd-tests       2603
+ :gomory-cuts     56
+ :ineq-splits     111
+ :max-memory      4.07
+ :memory          2.70
+ :minimized-lits  3
+ :mk-clause       22
+ :num-allocs      69253735.00
+ :pivots          2416
+ :propagations    77
+ :rlimit-count    13793
+ :time            37.26
+ :total-time      37.30)

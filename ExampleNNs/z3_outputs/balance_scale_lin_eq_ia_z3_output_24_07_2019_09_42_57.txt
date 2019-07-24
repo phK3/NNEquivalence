@@ -1,0 +1,201 @@
+sat
+(model 
+  (define-fun i_0_0 () Real
+    5.0)
+  (define-fun B_o_3_2 () Int
+    0)
+  (define-fun i_0_1 () Real
+    (/ 169165831.0 62500000.0))
+  (define-fun B_o_0_3_0 () Real
+    (/ 55689334338191446230643798301929.0 31250000000000000000000000000000.0))
+  (define-fun B_o_1_3_0 () Real
+    (/ 55689334338191446230643798301929.0 31250000000000000000000000000000.0))
+  (define-fun A_o_3_0 () Int
+    1)
+  (define-fun A_d_1_1 () Int
+    0)
+  (define-fun A_A_o_1_3_0_d_3_0 () Int
+    0)
+  (define-fun B_d_1_0 () Int
+    1)
+  (define-fun A_d_0_2 () Int
+    0)
+  (define-fun B_B_o_0_3_0_d_3_0 () Int
+    1)
+  (define-fun A_o_0_0 () Real
+    0.0)
+  (define-fun A_d_1_2 () Int
+    0)
+  (define-fun A_o_1_0 () Real
+    (/ 5005504869335938739617.0 1562500000000000000000.0))
+  (define-fun A_o_3_1 () Int
+    0)
+  (define-fun E_dg_0_2 () Int
+    0)
+  (define-fun B_B_o_1_3_0_d_3_0 () Int
+    0)
+  (define-fun E_dg_0_0 () Int
+    1)
+  (define-fun B_d_0_1 () Int
+    0)
+  (define-fun A_d_0_1 () Int
+    0)
+  (define-fun E_dl_0_1 () Int
+    1)
+  (define-fun A_d_0_0 () Int
+    0)
+  (define-fun i_0_3 () Real
+    1.0)
+  (define-fun E_dg_0_1 () Int
+    0)
+  (define-fun A_o_0_3 () Real
+    (/ 717924663461931.0 156250000000000.0))
+  (define-fun E_dl_0_0 () Int
+    0)
+  (define-fun B_o_1_3 () Real
+    0.0)
+  (define-fun i_0_2 () Real
+    1.0)
+  (define-fun A_d_1_0 () Int
+    1)
+  (define-fun B_o_1_0 () Real
+    (/ 233887165977180698370067.0 62500000000000000000000.0))
+  (define-fun B_o_1_1 () Real
+    (/ 34208059152489462182029.0 78125000000000000000000.0))
+  (define-fun B_o_0_1 () Real
+    0.0)
+  (define-fun A_o_1_1 () Real
+    0.0)
+  (define-fun B_d_1_1 () Int
+    1)
+  (define-fun A_d_1_3 () Int
+    1)
+  (define-fun B_d_0_3 () Int
+    1)
+  (define-fun A_o_3_2 () Int
+    0)
+  (define-fun B_d_0_0 () Int
+    1)
+  (define-fun A_o_1_2 () Real
+    0.0)
+  (define-fun A_d_0_3 () Int
+    1)
+  (define-fun B_o_0_3 () Real
+    (/ 229838691.0 50000000.0))
+  (define-fun A_o_0_3_0 () Real
+    (/ 409296264506019379894496879.0 62500000000000000000000000.0))
+  (define-fun E_dl_0_2 () Int
+    0)
+  (define-fun B_o_0_0 () Real
+    (/ 4093874182389853.0 781250000000000.0))
+  (define-fun B_o_3_0 () Int
+    0)
+  (define-fun A_o_1_3_0 () Real
+    (/ 409296264506019379894496879.0 62500000000000000000000000.0))
+  (define-fun B_o_1_2 () Real
+    (/ 1318966814368844938049769.0 625000000000000000000000.0))
+  (define-fun A_o_1_3 () Real
+    (/ 9012632049558826154989.0 3125000000000000000000.0))
+  (define-fun B_d_0_2 () Int
+    1)
+  (define-fun B_o_0_2 () Real
+    (/ 31107207845706553.0 6250000000000000.0))
+  (define-fun B_o_3_1 () Int
+    1)
+  (define-fun A_o_0_1 () Real
+    0.0)
+  (define-fun B_d_1_3 () Int
+    0)
+  (define-fun B_d_1_2 () Int
+    1)
+  (define-fun A_o_0_2 () Real
+    0.0)
+  (define-fun A_A_o_0_3_0_d_3_0 () Int
+    0)
+  (define-fun E_x_0_2 () Real
+    0.0)
+  (define-fun E_x_0_1 () Real
+    (- 1.0))
+  (define-fun E_x_0_0 () Real
+    1.0)
+  (define-fun B_x_3_2 () Real
+    (- (/ 939852127333256490763255910837.0 3125000000000000000000000000000.0)))
+  (define-fun B_x_3_1 () Real
+    0.0)
+  (define-fun B_x_3_0 () Real
+    (- (/ 1843869311710489304879518589959.0 31250000000000000000000000000000.0)))
+  (define-fun B_x_2_2 () Real
+    (/ 46290813064858881323011239193559.0 31250000000000000000000000000000.0))
+  (define-fun B_x_2_1 () Real
+    (/ 55689334338191446230643798301929.0 31250000000000000000000000000000.0))
+  (define-fun B_x_2_0 () Real
+    (/ 5384546502648095692576427971197.0 3125000000000000000000000000000.0))
+  (define-fun B_x_1_3 () Real
+    (- (/ 831673256365818050614017.0 312500000000000000000000.0)))
+  (define-fun B_x_1_2 () Real
+    (/ 1318966814368844938049769.0 625000000000000000000000.0))
+  (define-fun B_x_1_1 () Real
+    (/ 34208059152489462182029.0 78125000000000000000000.0))
+  (define-fun B_x_1_0 () Real
+    (/ 233887165977180698370067.0 62500000000000000000000.0))
+  (define-fun B_x_0_3 () Real
+    (/ 229838691.0 50000000.0))
+  (define-fun B_x_0_2 () Real
+    (/ 31107207845706553.0 6250000000000000.0))
+  (define-fun B_x_0_1 () Real
+    0.0)
+  (define-fun B_x_0_0 () Real
+    (/ 4093874182389853.0 781250000000000.0))
+  (define-fun A_x_3_2 () Real
+    (- (/ 105800297527525425921137158173.0 15625000000000000000000000000.0)))
+  (define-fun A_x_3_1 () Real
+    (- (/ 1836931121905131826280334196467.0 312500000000000000000000000000.0)))
+  (define-fun A_x_3_0 () Real
+    0.0)
+  (define-fun A_x_2_2 () Real
+    (- (/ 3476231401020580947512938423.0 15625000000000000000000000000.0)))
+  (define-fun A_x_2_1 () Real
+    (/ 209550200624965073192150198533.0 312500000000000000000000000000.0))
+  (define-fun A_x_2_0 () Real
+    (/ 409296264506019379894496879.0 62500000000000000000000000.0))
+  (define-fun A_x_1_3 () Real
+    (/ 9012632049558826154989.0 3125000000000000000000.0))
+  (define-fun A_x_1_2 () Real
+    (- (/ 9171464095966255958121.0 7812500000000000000000.0)))
+  (define-fun A_x_1_1 () Real
+    (- (/ 21442321499575626946579.0 78125000000000000000000.0)))
+  (define-fun A_x_1_0 () Real
+    (/ 5005504869335938739617.0 1562500000000000000000.0))
+  (define-fun A_x_0_3 () Real
+    (/ 717924663461931.0 156250000000000.0))
+  (define-fun A_x_0_2 () Real
+    (- (/ 1670673185543447.0 6250000000000000.0)))
+  (define-fun A_x_0_1 () Real
+    (- (/ 3564077246222571.0 1562500000000000.0)))
+  (define-fun A_x_0_0 () Real
+    (- (/ 2304488708235147.0 781250000000000.0)))
+)
+(:add-rows        68001
+ :added-eqs       234
+ :arith-conflicts 24
+ :assert-lower    165
+ :assert-upper    184
+ :conflicts       24
+ :decisions       106
+ :eliminated-vars 31
+ :final-checks    287
+ :fixed-eqs       83
+ :gcd-tests       1297
+ :gomory-cuts     53
+ :ineq-splits     82
+ :max-memory      4.30
+ :memory          2.91
+ :minimized-lits  1
+ :mk-clause       22
+ :num-allocs      2785569.00
+ :offset-eqs      110
+ :pivots          2293
+ :propagations    10
+ :rlimit-count    12841
+ :time            34.07
+ :total-time      34.13)

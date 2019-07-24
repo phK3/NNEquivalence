@@ -1,0 +1,540 @@
+(model
+(define-fun i_0_0 () Real (/ 1142434631089799981311444070048836242271436 143598453298315758183830846874169994204101))
+(define-fun i_0_1 () Real 1.0)
+(define-fun i_0_2 () Real 1.0)
+(define-fun i_0_3 () Real 1.0)
+(define-fun i_0_4 () Real 1.0)
+(define-fun i_0_5 () Real 1.0)
+(define-fun i_0_6 () Real 8.0)
+(define-fun i_0_7 () Real (/ 671025644820287216267566872980394392032771 143598453298315758183830846874169994204101))
+(define-fun i_0_8 () Real (/ 3214551044739483847939038949151729598158202 717992266491578790919154234370849971020505))
+(define-fun x_0_0 () Real 0.0)
+(define-fun x_0_1 () Real (/ 7162213592429606251717708527360181764303459306953 2243725832786183721622356982408906159439078125000))
+(define-fun x_0_2 () Real (/ (- 49050967003763099489029449233075104418776145808869) 17949806662289469772978855859271249275512625000000))
+(define-fun x_0_3 () Real (/ 4043318532782471851432124468543065668613640211599183 358996133245789395459577117185424985510252500000000))
+(define-fun x_0_4 () Real (/ 52919490488324419742965571447581650076245923293261 35899613324578939545957711718542498551025250000000))
+(define-fun x_0_5 () Real (/ (- 1640144480059305347196096442869481704486493386924013) 358996133245789395459577117185424985510252500000000))
+(define-fun x_0_6 () Real (/ 43723066343818031700140915254398372089217420408431 8974903331144734886489427929635624637756312500000))
+(define-fun x_0_7 () Real 0.0)
+(define-fun d_0_0 () Int 0)
+(define-fun d_0_1 () Int 1)
+(define-fun d_0_2 () Int 0)
+(define-fun d_0_3 () Int 1)
+(define-fun d_0_4 () Int 1)
+(define-fun d_0_5 () Int 0)
+(define-fun d_0_6 () Int 1)
+(define-fun d_0_7 () Int 0)
+(define-fun o_0_0 () Real 0.0)
+(define-fun o_0_1 () Real (/ 7162213592429606251717708527360181764303459306953 2243725832786183721622356982408906159439078125000))
+(define-fun o_0_2 () Real 0.0)
+(define-fun o_0_3 () Real (/ 4043318532782471851432124468543065668613640211599183 358996133245789395459577117185424985510252500000000))
+(define-fun o_0_4 () Real (/ 52919490488324419742965571447581650076245923293261 35899613324578939545957711718542498551025250000000))
+(define-fun o_0_5 () Real 0.0)
+(define-fun o_0_6 () Real (/ 43723066343818031700140915254398372089217420408431 8974903331144734886489427929635624637756312500000))
+(define-fun o_0_7 () Real 0.0)
+(define-fun x_1_0 () Real (/ (- 1615183848041434522231046688894025114052505395266341154141) 1121862916393091860811178491204453079719539062500000000000))
+(define-fun x_1_1 () Real (/ 83865510819738559340216309015725858317911107807959842403301 17949806662289469772978855859271249275512625000000000000000))
+(define-fun x_1_2 () Real (/ 15106459254586725199575913198107701141954517156968846703949 1794980666228946977297885585927124927551262500000000000000))
+(define-fun x_1_3 () Real (/ (- 262670881976733170521101704077301238024606758949179123791367) 71799226649157879091915423437084997102050500000000000000000))
+(define-fun d_1_0 () Int 0)
+(define-fun d_1_1 () Int 1)
+(define-fun d_1_2 () Int 1)
+(define-fun d_1_3 () Int 0)
+(define-fun o_1_0 () Real 0.0)
+(define-fun o_1_1 () Real (/ 83865510819738559340216309015725858317911107807959842403301 17949806662289469772978855859271249275512625000000000000000))
+(define-fun o_1_2 () Real (/ 15106459254586725199575913198107701141954517156968846703949 1794980666228946977297885585927124927551262500000000000000))
+(define-fun o_1_3 () Real 0.0)
+(define-fun x_2_0 () Real 0.0)
+)
+expr::ExprManager::EQUAL, 13
+expr::ExprManager::LEQ, 115
+expr::ExprManager::MULT, 156
+expr::ExprManager::PLUS, 49
+expr::ExprManager::UMINUS, 83
+expr::ExprManager::VARIABLE:integer type, 12
+expr::ExprManager::VARIABLE:real type, 34
+FirstOrderModel::constantTermsCount, 0
+FirstOrderModel::functionTermsCount, 0
+FirstOrderModel::mergesCount, 33
+FirstOrderModel::termsCount, 48
+Instantiate::Duplicate_Inst, 0
+Instantiate::Duplicate_Inst_Entailed, 0
+Instantiate::Duplicate_Inst_Eq, 0
+Instantiate::Duplicate_Inst_Model_True, 0
+Instantiate::Instantiations_Total, 0
+QuantConflictFind::Entailment_Checks, 0
+QuantConflictFind::Inst_Rounds, 0
+QuantifiersEngine::Instantiations_Auto_Gen, 0
+QuantifiersEngine::Instantiations_Cbqi, 0
+QuantifiersEngine::Instantiations_Fmf_Exh, 0
+QuantifiersEngine::Instantiations_Fmf_Mbqi, 0
+QuantifiersEngine::Instantiations_Guess, 0
+QuantifiersEngine::Instantiations_Qcf_Conflict, 0
+QuantifiersEngine::Instantiations_Qcf_Prop, 0
+QuantifiersEngine::Instantiations_Rewrite_Rules, 0
+QuantifiersEngine::Instantiations_User_Patterns, 0
+QuantifiersEngine::Multi_Trigger_Instantiations, 0
+QuantifiersEngine::Num_Quantifiers, 0
+QuantifiersEngine::Reductions_Alpha_Equivalence, 0
+QuantifiersEngine::Rounds_Instantiation_Full, 0
+QuantifiersEngine::Rounds_Instantiation_Last_Call, 0
+QuantifiersEngine::Triggers, 0
+QuantifiersEngine::Triggers_Multi, 0
+QuantifiersEngine::Triggers_Simple, 0
+SharedTermsDatabase::constantTermsCount, 0
+SharedTermsDatabase::functionTermsCount, 0
+SharedTermsDatabase::mergesCount, 28
+SharedTermsDatabase::termsCount, 40
+TheoryEngine::combineTheoriesTime, 0.000019
+decision::jh::giveup, 0
+decision::jh::helpfulness, 25
+decision::jh::time, 0.000683
+preprocessing::apply-substs, 0.010247
+preprocessing::apply-to-const, 0.000000
+preprocessing::bool-to-bv, 0.000000
+preprocessing::bv-abstraction, 0.000000
+preprocessing::bv-ackermann, 0.000000
+preprocessing::bv-eager-atoms, 0.000000
+preprocessing::bv-gauss, 0.000000
+preprocessing::bv-intro-pow2, 0.000000
+preprocessing::bv-to-bool, 0.000000
+preprocessing::ext-rew-pre, 0.000000
+preprocessing::global-negate, 0.000000
+preprocessing::int-to-bv, 0.000000
+preprocessing::ite-removal, 0.003372
+preprocessing::ite-simp, 0.000000
+preprocessing::miplib-trick, 0.000000
+preprocessing::nl-ext-purify, 0.000000
+preprocessing::non-clausal-simp, 0.049288
+preprocessing::passes::BVToBool::NumAtomsLifted, 0
+preprocessing::passes::BVToBool::NumTermsForcedLifted, 0
+preprocessing::passes::BVToBool::NumTermsLifted, 0
+preprocessing::passes::BoolToBV::NumIteToBvite, 0
+preprocessing::passes::ITESimp::ArithSubstitutionsAdded, 0
+preprocessing::passes::MipLibTrick::numMiplibAssertionsRemoved, 0
+preprocessing::passes::NonClausalSimp::NumConstantProps, 0
+preprocessing::pseudo-boolean-processor, 0.000000
+preprocessing::quantifier-macros, 0.000000
+preprocessing::quantifiers-preprocess, 0.000022
+preprocessing::real-to-int, 0.000000
+preprocessing::rewrite, 0.000000
+preprocessing::sep-skolem-emp, 0.000000
+preprocessing::sort-inference, 0.000000
+preprocessing::static-learning, 0.007831
+preprocessing::sygus-abduct, 0.000000
+preprocessing::sygus-infer, 0.000000
+preprocessing::sym-break, 0.000000
+preprocessing::synth-rr, 0.000000
+preprocessing::theory-preprocess, 0.016119
+preprocessing::unconstrained-simplifier, 0.000000
+preprocessor::number of unconstrained elims, 0
+proof::ProofManager::proofProductionTime, 0.000000
+prop::theoryproxy::replayedDecisions, 0
+sat::clauses_literals, 0
+sat::conflicts, 4
+sat::decisions, 25
+sat::learnts_literals, 155
+sat::max_literals, 15
+sat::propagations, 161
+sat::rnd_decisions, 0
+sat::starts, 1
+sat::tot_literals, 14
+smt::SmtEngine::checkModelTime, 0.000000
+smt::SmtEngine::checkUnsatCoreTime, 0.000000
+smt::SmtEngine::cnfConversionTime, 0.020963
+smt::SmtEngine::definitionExpansionTime, 0.000561
+smt::SmtEngine::lfscCheckProofTime, 0.000000
+smt::SmtEngine::numAssertionsPostITERemoval, 129
+smt::SmtEngine::numAssertionsPreITERemoval, 129
+smt::SmtEngine::numConstantProps, 0
+smt::SmtEngine::processAssertionsTime, 0.110408
+smt::SmtEngine::proofsSize, 0
+smt::SmtEngine::pushPopTime, 0.000000
+smt::SmtEngine::resourceUnitsUsed, 12360
+smt::SmtEngine::simplifiedToFalse, 0
+smt::SmtEngine::solveTime, 5.637530
+theory::QuantifiersEngine::time, 0.000010
+theory::QuantifiersEngine::time_ematching, 0.000000
+theory::QuantifiersEngine::time_qcf, 0.000000
+theory::arith::ArithCongruenceManager::constantTermsCount, 0
+theory::arith::ArithCongruenceManager::functionTermsCount, 0
+theory::arith::ArithCongruenceManager::mergesCount, 42
+theory::arith::ArithCongruenceManager::termsCount, 40
+theory::arith::AssertLowerConflicts, 0
+theory::arith::AssertUpperConflicts, 0
+theory::arith::AuxiliaryVariables, 61
+theory::arith::DisequalityConflicts, 0
+theory::arith::DisequalitySplits, 0
+theory::arith::FC::Construction, 0.000000
+theory::arith::FC::FoundSat, 0
+theory::arith::FC::FoundUnsat, 0
+theory::arith::FC::Missed, 0
+theory::arith::FC::Timer, 0.000000
+theory::arith::FC::UpdateConflicts, 0
+theory::arith::FC::initialProcessTime, 0.000000
+theory::arith::FC::lastPivots, "0"
+theory::arith::FC::selectUpdateForDualLike, 0.000000
+theory::arith::FC::selectUpdateForPrimal, 0.000000
+theory::arith::SOI::ConfMin::num, 0
+theory::arith::SOI::Conflict::Minimization, 0.000000
+theory::arith::SOI::Construction, 0.000000
+theory::arith::SOI::FoundSat, 0
+theory::arith::SOI::FoundUnsat, 0
+theory::arith::SOI::HasToBeMin, 0
+theory::arith::SOI::MaybeNotMin, 0
+theory::arith::SOI::Missed, 0
+theory::arith::SOI::Time, 0.000000
+theory::arith::SOI::UpdateConflicts, 0
+theory::arith::SOI::initialProcessTime, 0.000000
+theory::arith::SOI::lastPivots, "0"
+theory::arith::SOI::selectSOI, 0.000000
+theory::arith::UserVariables, 33
+theory::arith::adjTime, 0.499455
+theory::arith::attempt::conflicts, 0
+theory::arith::attempt::queueTime, 0.000000
+theory::arith::attempt::searchTime, 0.000000
+theory::arith::bound::boundComputations, 0
+theory::arith::bound::boundPropagations, 0
+theory::arith::bound::time, 0.011696
+theory::arith::cd::unatePropagateCalls, 143
+theory::arith::cd::unatePropagateImplications, 13
+theory::arith::checkTime, 5.622059
+theory::arith::computeCareGraphTime, 0.000000
+theory::arith::conflicts, 34
+theory::arith::congruence::conflicts, 0
+theory::arith::congruence::equalsConstantCalls, 42
+theory::arith::congruence::propagateConstraints, 0
+theory::arith::congruence::propagations, 42
+theory::arith::congruence::watchedVariableIsNotZero, 0
+theory::arith::congruence::watchedVariableIsZero, 0
+theory::arith::congruence::watchedVariables, 7
+theory::arith::currSetToSmaller, 0
+theory::arith::dio::conflictCalls, 12
+theory::arith::dio::conflictTimer, 0.000837
+theory::arith::dio::conflicts, 0
+theory::arith::dio::cutCalls, 10
+theory::arith::dio::cutTimer, 0.000785
+theory::arith::dio::cuts, 0
+theory::arith::dual::UpdateConflicts, 0
+theory::arith::dual::findConflictOnTheQueueTime, 0.025133
+theory::arith::dual::lastPivots, "0"
+theory::arith::dual::recentViolationCatches, 34
+theory::arith::dual::searchTime, 5.594338
+theory::arith::dual::simplexConflicts, 0
+theory::arith::externalBranchAndBounds, 12
+theory::arith::forcing::time, 0.000000
+theory::arith::initialTableauSize, 370
+theory::arith::iteConstantApplications, 0
+theory::arith::iteMinMaxApplications, 0
+theory::arith::lemmas, 45
+theory::arith::newPropTimer, 0.000092
+theory::arith::pivotTime, 5.566362
+theory::arith::pivots, 895
+theory::arith::pivots::sat, "[]"
+theory::arith::pivots::unknown, "[]"
+theory::arith::pivots::unsat, "[]"
+theory::arith::ppRewriteTimer, 0.003649
+theory::arith::pqueue::enqueues, 0
+theory::arith::pqueue::enqueuesCollection, 0
+theory::arith::pqueue::enqueuesCollectionDuplicates, 0
+theory::arith::pqueue::enqueuesDiffMode, 0
+theory::arith::pqueue::enqueuesVarOrderMode, 0
+theory::arith::pqueue::enqueuesVarOrderModeDuplicates, 0
+theory::arith::presolveTime, 0.000433
+theory::arith::propagations, 28
+theory::arith::requirePhase, 0
+theory::arith::restartDemands, 0
+theory::arith::restartTimer, 0.000000
+theory::arith::simplifyTimer, 0.000322
+theory::arith::smallerSetToCurr, 0
+theory::arith::staticLearningTimer, 0.006677
+theory::arith::status::avgUnknownsInARow, 0.000000
+theory::arith::status::commitsOnConflicts, 14
+theory::arith::status::maxUnknownsInARow, 0
+theory::arith::status::nontrivialSatChecks, 51
+theory::arith::status::revertsOnConflicts, 0
+theory::arith::status::unknowns, 0
+theory::arith::updates, 913
+theory::arith::weakening::attempts, 34
+theory::arith::weakening::success, 0
+theory::arith::weakening::time, 0.003127
+theory::arith::weakening::total, 0
+theory::arith::z::approx::cuts::branch::attempted, 0
+theory::arith::z::approx::cuts::gmi::attempted, 0
+theory::arith::z::approx::cuts::mir::attempted, 0
+theory::arith::z::approx::cuts::proofs, 0
+theory::arith::z::approx::cuts::proofs::failed, 0
+theory::arith::z::approx::cuts::reconstructed, 0
+theory::arith::z::approx::cuts::reconstructed::failed, 0
+theory::arith::z::approx::exhausted::branches, 0
+theory::arith::z::approx::exhausted::exec, 0
+theory::arith::z::approx::exhausted::pivots, 0
+theory::arith::z::approx::external::branches, 0
+theory::arith::z::approx::external::calls, 0
+theory::arith::z::approx::external::cuts, 0
+theory::arith::z::approx::external::cuts::rejected, 0
+theory::arith::z::approx::inSolverInteger, 0
+theory::arith::z::approx::lp::timer, 0.000000
+theory::arith::z::approx::mip::timer, 0.000000
+theory::arith::z::approx::replay::cuts::rejected, 0
+theory::arith::z::approx::replay::log::timer, 0.000000
+theory::arith::z::approx::replay::rec, 0
+theory::arith::z::approx::replay::rec::branch::closefailures, 0
+theory::arith::z::approx::replay::rec::branch::skips, 0
+theory::arith::z::approx::replay::rec::earlyexit, 0
+theory::arith::z::approx::replay::rec::escalation, 0
+theory::arith::z::approx::replay::rec::leaf::closefailures, 0
+theory::arith::z::approx::replay::simplex::timer, 0.000000
+theory::arith::z::approxDisabled, 0
+theory::arith::z::arith::cuts::applyRowsDeleted, 0
+theory::arith::z::arith::paniclemmas, 0
+theory::arith::z::arith::relax::calls, 0
+theory::arith::z::arith::relax::exhausted, 0
+theory::arith::z::arith::relax::feasible::failures, 0
+theory::arith::z::arith::relax::feasible::res, 0
+theory::arith::z::arith::relax::infeasible, 0
+theory::arith::z::arith::relax::infeasible::failures, 0
+theory::arith::z::arith::relax::other, 0
+theory::arith::z::mip::branch::proof::failed, 0
+theory::arith::z::mip::proofs::attempted, 0
+theory::arith::z::mip::proofs::successful, 0
+theory::arith::z::replayAttemptFailed, 0
+theory::arith::z::solveInt::calls, 0
+theory::arith::z::solveInt::calls::standardEffort, 0
+theory::arith::z::solveInt::models::attempts, 0
+theory::arith::z::solveInt::timer, 0.000000
+theory::arith::z::solveRealRelax::timer, 5.598839
+theory::arith::zzz::arith::substitutions, 0
+theory::arith::zzz::solveInt::models::successful, 0
+theory::arrays::avgInStoresListLength, 0.000000
+theory::arrays::avgIndexListLength, 0.000000
+theory::arrays::avgStoresListLength, 0.000000
+theory::arrays::callsMergeInfo, 0
+theory::arrays::checkTime, 0.000011
+theory::arrays::computeCareGraphTime, 0.000010
+theory::arrays::conflicts, 0
+theory::arrays::constantTermsCount, 0
+theory::arrays::functionTermsCount, 0
+theory::arrays::infoTableSize, 0
+theory::arrays::lemmas, 0
+theory::arrays::listsCount, 0
+theory::arrays::maxList, 0
+theory::arrays::mayEqual::constantTermsCount, 0
+theory::arrays::mayEqual::functionTermsCount, 0
+theory::arrays::mayEqual::mergesCount, 0
+theory::arrays::mayEqual::termsCount, 2
+theory::arrays::mergeInfoTimer, 0.000000
+theory::arrays::mergesCount, 0
+theory::arrays::number of Ext lemmas, 0
+theory::arrays::number of Row lemmas, 0
+theory::arrays::number of calls to setNonLinear, 0
+theory::arrays::number of explanations, 0
+theory::arrays::number of getModelVal conflicts, 0
+theory::arrays::number of getModelVal splits, 0
+theory::arrays::number of propagations, 0
+theory::arrays::number of setModelVal conflicts, 0
+theory::arrays::number of setModelVal splits, 0
+theory::arrays::number of shared array var splits, 0
+theory::arrays::pp::constantTermsCount, 0
+theory::arrays::pp::functionTermsCount, 0
+theory::arrays::pp::mergesCount, 0
+theory::arrays::pp::termsCount, 2
+theory::arrays::propagations, 0
+theory::arrays::requirePhase, 0
+theory::arrays::restartDemands, 0
+theory::arrays::termsCount, 2
+theory::bool::checkTime, 0.000000
+theory::bool::computeCareGraphTime, 0.000000
+theory::bool::conflicts, 0
+theory::bool::lemmas, 0
+theory::bool::propagations, 0
+theory::bool::requirePhase, 0
+theory::bool::restartDemands, 0
+theory::builtin::checkTime, 0.000000
+theory::builtin::computeCareGraphTime, 0.000000
+theory::builtin::conflicts, 0
+theory::builtin::lemmas, 0
+theory::builtin::propagations, 0
+theory::builtin::requirePhase, 0
+theory::builtin::restartDemands, 0
+theory::bv::AvgBVConflictSize, 0.000000
+theory::bv::BitblastSolver::NumCallsToCheck, 0
+theory::bv::BitblastSolver::NumTimesLemmasBB, 0
+theory::bv::CoreSolver::NumCallsToCheck, 0
+theory::bv::CoreSolver::SlicerEnabled, "0"
+theory::bv::NumFullCheckCalls, 0
+theory::bv::NumMultSliceApplied, 0
+theory::bv::NumSolveSubstitutions, 0
+theory::bv::NumStandardCheckCalls, 0
+theory::bv::abstraction::AbstractionTime, 0.000000
+theory::bv::abstraction::NumArgsSkolemized, 0
+theory::bv::abstraction::NumFunctionsAbstracted, 0
+theory::bv::algebraic::BitblastTimer, 0.000000
+theory::bv::algebraic::NumAtomSatClauses, 0
+theory::bv::algebraic::NumBitblastedAtoms, 0
+theory::bv::algebraic::NumBitblastedTerms, 0
+theory::bv::algebraic::NumBitblastingPropagations, 0
+theory::bv::algebraic::NumCallsToCheck, 0
+theory::bv::algebraic::NumExplainedPropagations, 0
+theory::bv::algebraic::NumSat, 0
+theory::bv::algebraic::NumSimplifiesToFalse, 0
+theory::bv::algebraic::NumSimplifiesToTrue, 0
+theory::bv::algebraic::NumTermSatClauses, 0
+theory::bv::algebraic::NumUnknown, 0
+theory::bv::algebraic::NumUnsat, 0
+theory::bv::algebraic::SolveTime, 0.000000
+theory::bv::algebraic::UseHeuristic, 0.200000
+theory::bv::algebraic::bvminisat::calls_to_solve, 0
+theory::bv::algebraic::bvminisat::clauses_literals, 0
+theory::bv::algebraic::bvminisat::conflicts, 0
+theory::bv::algebraic::bvminisat::decisions, 0
+theory::bv::algebraic::bvminisat::eliminated_vars, 0
+theory::bv::algebraic::bvminisat::learnts_literals, 0
+theory::bv::algebraic::bvminisat::max_literals, 0
+theory::bv::algebraic::bvminisat::propagations, 0
+theory::bv::algebraic::bvminisat::rnd_decisions, 0
+theory::bv::algebraic::bvminisat::solve_time, 0.000000
+theory::bv::algebraic::bvminisat::starts, 0
+theory::bv::algebraic::bvminisat::tot_literals, 0
+theory::bv::checkTime, 0.000000
+theory::bv::computeCareGraphTime, 0.000000
+theory::bv::conflicts, 0
+theory::bv::ee::constantTermsCount, 0
+theory::bv::ee::functionTermsCount, 0
+theory::bv::ee::mergesCount, 0
+theory::bv::ee::termsCount, 2
+theory::bv::inequality::NumCallsToCheck, 0
+theory::bv::inequality::SolveTime, 0.000000
+theory::bv::lazy::BitblastTimer, 0.000000
+theory::bv::lazy::NumAtomSatClauses, 0
+theory::bv::lazy::NumBitblastedAtoms, 0
+theory::bv::lazy::NumBitblastedTerms, 0
+theory::bv::lazy::NumBitblastingPropagations, 0
+theory::bv::lazy::NumExplainedPropagations, 0
+theory::bv::lazy::NumTermSatClauses, 0
+theory::bv::lazy::bvminisat::calls_to_solve, 0
+theory::bv::lazy::bvminisat::clauses_literals, 0
+theory::bv::lazy::bvminisat::conflicts, 0
+theory::bv::lazy::bvminisat::decisions, 0
+theory::bv::lazy::bvminisat::eliminated_vars, 0
+theory::bv::lazy::bvminisat::learnts_literals, 0
+theory::bv::lazy::bvminisat::max_literals, 0
+theory::bv::lazy::bvminisat::propagations, 0
+theory::bv::lazy::bvminisat::rnd_decisions, 0
+theory::bv::lazy::bvminisat::solve_time, 0.000000
+theory::bv::lazy::bvminisat::starts, 0
+theory::bv::lazy::bvminisat::tot_literals, 0
+theory::bv::lemmas, 0
+theory::bv::propagations, 0
+theory::bv::requirePhase, 0
+theory::bv::restartDemands, 0
+theory::bv::slicer::AverageFindDepth, 0.000000
+theory::bv::slicer::NumEqualitiesAdded, "0"
+theory::bv::slicer::NumMerges, 0
+theory::bv::slicer::NumRepresentatives, 0
+theory::bv::slicer::NumSplits, 0
+theory::bv::solveTimer, 0.000000
+theory::bv::weightComputationTimer, 0.000000
+theory::datatypes::checkTime, 0.000000
+theory::datatypes::computeCareGraphTime, 0.000000
+theory::datatypes::conflicts, 0
+theory::datatypes::constantTermsCount, 0
+theory::datatypes::functionTermsCount, 0
+theory::datatypes::lemmas, 0
+theory::datatypes::mergesCount, 0
+theory::datatypes::propagations, 0
+theory::datatypes::requirePhase, 0
+theory::datatypes::restartDemands, 0
+theory::datatypes::termsCount, 2
+theory::fp::checkTime, 0.000000
+theory::fp::computeCareGraphTime, 0.000000
+theory::fp::conflicts, 0
+theory::fp::ee::constantTermsCount, 0
+theory::fp::ee::functionTermsCount, 0
+theory::fp::ee::mergesCount, 0
+theory::fp::ee::termsCount, 2
+theory::fp::lemmas, 0
+theory::fp::propagations, 0
+theory::fp::requirePhase, 0
+theory::fp::restartDemands, 0
+theory::master::constantTermsCount, 0
+theory::master::functionTermsCount, 0
+theory::master::mergesCount, 42
+theory::master::termsCount, 40
+theory::quantifiers::checkTime, 0.000021
+theory::quantifiers::computeCareGraphTime, 0.000000
+theory::quantifiers::conflicts, 0
+theory::quantifiers::lemmas, 0
+theory::quantifiers::propagations, 0
+theory::quantifiers::requirePhase, 0
+theory::quantifiers::restartDemands, 0
+theory::sep::checkTime, 0.000000
+theory::sep::computeCareGraphTime, 0.000000
+theory::sep::conflicts, 0
+theory::sep::ee::constantTermsCount, 0
+theory::sep::ee::functionTermsCount, 0
+theory::sep::ee::mergesCount, 0
+theory::sep::ee::termsCount, 2
+theory::sep::lemmas, 0
+theory::sep::propagations, 0
+theory::sep::requirePhase, 0
+theory::sep::restartDemands, 0
+theory::sets::checkTime, 0.000000
+theory::sets::computeCareGraphTime, 0.000000
+theory::sets::conflicts, 0
+theory::sets::ee::constantTermsCount, 0
+theory::sets::ee::functionTermsCount, 0
+theory::sets::ee::mergesCount, 0
+theory::sets::ee::termsCount, 2
+theory::sets::getModelValueTime, 0.000000
+theory::sets::leaves, 0
+theory::sets::leaves-max, 0
+theory::sets::lemmas, 0
+theory::sets::lemmas::disequality, 0
+theory::sets::lemmas::member, 0
+theory::sets::merge1or2, 0
+theory::sets::merge3, 0
+theory::sets::merge_nodes::time, 0.000000
+theory::sets::processCard2::time, 0.000000
+theory::sets::propagations, 0
+theory::sets::requirePhase, 0
+theory::sets::restartDemands, 0
+theory::sets::vertices, 0
+theory::sets::vertices-max, 0
+theory::shared_terms, 0
+theory::strings::NumOfDiseqSplits, 0
+theory::strings::NumOfEqSplits, 0
+theory::strings::NumOfLoops, 0
+theory::strings::NumOfSplitOnDemands, 0
+theory::strings::checkTime, 0.000000
+theory::strings::computeCareGraphTime, 0.000000
+theory::strings::conflicts, 0
+theory::strings::constantTermsCount, 0
+theory::strings::functionTermsCount, 0
+theory::strings::lemmas, 0
+theory::strings::mergesCount, 0
+theory::strings::propagations, 0
+theory::strings::requirePhase, 0
+theory::strings::restartDemands, 0
+theory::strings::termsCount, 2
+theory::uf::checkTime, 0.000147
+theory::uf::computeCareGraphTime, 0.000008
+theory::uf::conflicts, 0
+theory::uf::ee::constantTermsCount, 0
+theory::uf::ee::functionTermsCount, 0
+theory::uf::ee::mergesCount, 28
+theory::uf::ee::termsCount, 40
+theory::uf::lemmas, 0
+theory::uf::propagations, 28
+theory::uf::requirePhase, 0
+theory::uf::restartDemands, 0
+theory::uf::symmetry_breaker::clauses, 0
+theory::uf::symmetry_breaker::permutationSetsConsidered, 0
+theory::uf::symmetry_breaker::permutationSetsInvariant, 0
+theory::uf::symmetry_breaker::timers::initNormalization, 0.000000
+theory::uf::symmetry_breaker::timers::invariantByPermutations, 0.000000
+theory::uf::symmetry_breaker::timers::selectTerms, 0.000000
+theory::uf::symmetry_breaker::units, 0
+driver::filename, smtlib_files/cancer_simple_lin_out_geq_zero_no_ia_cvc.smt2
+driver::sat/unsat, sat
+driver::totalTime, 5.771763188
