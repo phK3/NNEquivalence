@@ -151,7 +151,7 @@ def encode_layers(input_vars, layers, net_prefix):
             constraints.append(eqs)
 
             if activation == 'relu':
-                reluouts, reludeltas, reluineqs = encode_relu_layer(linvars, num_neurons, net_prefix)
+                reluouts, reludeltas, reluineqs = encode_relu_layer(linvars, i, net_prefix)
 
                 vars.append(reludeltas)
                 vars.append(reluouts)
