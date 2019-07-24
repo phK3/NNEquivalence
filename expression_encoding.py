@@ -237,6 +237,20 @@ def encode_from_file(path, input_lower_bounds, input_upper_bounds):
     return encodeNN(layers, input_lower_bounds, input_upper_bounds, '')
 
 
+def encode_equivalence_from_file(path1, path2, input_lower_bounds, input_upper_bounds, with_one_hot=False):
+    kl1 = KerasLoader()
+    kl1.load(path1)
+    layers1 = kl1.getHiddenLayers()
+
+    kl2 = KerasLoader()
+    kl2.load(path2)
+    layers2 = kl2.getHiddenLayers()
+
+    return encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds, with_one_hot)
+
+
+
+
 def interval_arithmetic(constraints):
     for c in flatten(constraints):
         c.tighten_interval()
