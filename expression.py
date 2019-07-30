@@ -430,7 +430,7 @@ class Max(Expression):
         return enc
 
     def to_gurobi(self, model):
-        return model.addConstr(self.output.to_gurobi(model) == grb.max_(self.in_a, self.in_b))
+        return model.addConstr(self.output.to_gurobi(model) == grb.max_(self.in_a.to_gurobi(model), self.in_b.to_gurobi(model)))
 
     def __repr__(self):
         return str(self.output) +  ' = max(' + str(self.in_a) + ', ' + str(self.in_b) + ')'
@@ -481,9 +481,8 @@ class One_hot(Expression):
         c_name = 'OneHot_{layer}_{row}'.format(layer=self.layer, row=self.row)
 
         # convert to greater than
-        # but hi_exclusive - eps would result in normal hi and break > condition
-        # see if this works
-        c1 = model.addConstr(h_i * self.output.to_gurobi(model) >= self.input.to_gurobi(model), name=c_name + '_a')
+        # normal (hi * output) - eps >= ... doesn't work
+        c1 = model.addConstr(h_i * (self.output.to_gurobi(model) - epsilon) >= self.input.to_gurobi(model), name=c_name + '_a')
         c2 = model.addConstr(self.input.to_gurobi(model) >= (1 - self.output.to_gurobi(model)) * l_i, name=c_name + '_b')
 
         return c1, c2
@@ -536,11 +535,10 @@ class Greater_Zero(Expression):
 
         c_name = 'Gt0_{layer}_{row}'.format(layer=self.layer, row=self.row)
 
-        # convert to greater than
-        # but lo_exclusive - eps would result in normal lo and break > condition
-        # see if this works
         c1 = model.addConstr(self.lhs.to_gurobi(model) <= h * self.delta.to_gurobi(model), name=c_name + '_a')
-        c2 = model.addConstr(self.lhs.to_gurobi(model) >= (1 - self.delta.to_gurobi(model)) * l, name=c_name + '_b')
+        # convert to greater than
+        # with epsilon otherwise, when lhs == 0, delta == 1 would also be ok, with epsilon forced to take 0
+        c2 = model.addConstr(self.lhs.to_gurobi(model) >= (1 - self.delta.to_gurobi(model) + epsilon) * l, name=c_name + '_b')
 
         return c1, c2
 
