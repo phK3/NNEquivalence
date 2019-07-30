@@ -1,6 +1,8 @@
 
 from expression import Variable, Linear, Relu, Max, Multiplication, Constant, Sum, Neg, One_hot, Greater_Zero, Geq
 from keras_loader import KerasLoader
+import gurobipy as grb
+import datetime
 
 # set this flag to only print bounds for deltas and inputs
 # (for smtlib format)
@@ -296,3 +298,26 @@ def print_to_smtlib(vars, constraints):
         consts += '\n' + c.to_smtlib()
 
     return preamble + '\n' + decls + '\n' + bounds + '\n' + consts + '\n' + suffix
+
+
+def create_gurobi_model(vars, constraints, name='NN_model'):
+    if name == 'NN_model':
+        date = datetime.datetime.now().strftime("%d_%m_%Y_%H_%M_%S")
+        name += '_' + date
+
+    model = grb.Model(name)
+
+    for var in flatten(vars):
+        var.register_to_gurobi(model)
+
+    model.update()
+
+    # model.setObjective(0, grb.GRB.MAXIMIZE)
+
+    for c in flatten(constraints):
+        c.to_gurobi(model)
+
+    model.update()
+
+    return model
+

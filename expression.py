@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
 from numpy import format_float_positional
 import numbers
+import gurobipy as grb
 
 default_bound = 999999
 epsilon = 1e-8
-
 
 def ffp(x):
     if x < 0:
@@ -59,6 +59,11 @@ class Expression(ABC):
     def to_smtlib(self):
         pass
 
+
+    @abstractmethod
+    def to_gurobi(self, model):
+        pass
+
     def getHi(self):
         return self.hi
 
@@ -110,6 +115,9 @@ class Constant(Expression):
 
         return s
 
+    def to_gurobi(self, model):
+        return self.value
+
     def __repr__(self):
         return str(self.value)
 
@@ -132,6 +140,9 @@ class Variable(Expression):
         self.lo = -default_bound
         self.hi = default_bound
 
+        self.has_grb_var = False
+        self.grb_var = None
+
     def tighten_interval(self):
         pass
 
@@ -149,6 +160,27 @@ class Variable(Expression):
             bounds += '\n' + makeGeq(self.name, ffp(self.lo))
 
         return bounds
+
+    def register_to_gurobi(self, model):
+        lower = - grb.GRB.INFINITY
+        upper = grb.GRB.INFINITY
+        var_type = None
+        if self.hasHi:
+            upper = self.hi
+        if self.hasLo:
+            lower = self.lo
+        # only types used are Int and Real
+        # for Int only 0-1 are used -> Binary for gurobi
+        if self.type == 'Int':
+            var_type = grb.GRB.BINARY
+        else:
+            var_type = grb.GRB.CONTINUOUS
+
+        self.grb_var = model.addVar(lb=lower, ub=upper, vtype=var_type, name=self.name)
+        self.has_grb_var = True
+
+    def to_gurobi(self, model):
+        return self.grb_var
 
     def setLo(self, val):
         self.hasLo = True
@@ -189,6 +221,9 @@ class Sum(Expression):
         sum += ')'
         return sum
 
+    def to_gurobi(self, model):
+        return grb.quicksum([t.to_gurobi(model) for t in self.children])
+
     def __repr__(self):
         sum = '(' + str(self.children[0])
         for term in self.children[1:]:
@@ -217,6 +252,9 @@ class Neg(Expression):
     def to_smtlib(self):
         return '(- ' + self.input.to_smtlib() + ')'
 
+    def to_gurobi(self, model):
+        return -self.input.to_gurobi(model)
+
     def __repr__(self):
         return '(- ' + str(self.input) + ')'
 
@@ -242,6 +280,12 @@ class Multiplication(Expression):
     def to_smtlib(self):
         return '(* ' + self.constant.to_smtlib() + ' ' + self.variable.to_smtlib() + ')'
 
+    def to_gurobi(self, model):
+        if not self.variable.has_grb_var:
+            raise ValueError('Variable {v} has not been registered to gurobi model!'.format(v=self.variable.name))
+
+        return self.constant.to_gurobi(model) * self.variable.to_gurobi(model)
+
     def __repr__(self):
         return '(' + str(self.constant) + ' * ' + str(self.variable) + ')'
 
@@ -265,6 +309,9 @@ class Linear(Expression):
 
     def to_smtlib(self):
         return makeEq(self.output.to_smtlib(), self.input.to_smtlib())
+
+    def to_gurobi(self, model):
+        return model.addConstr(self.output.to_gurobi(model) == self.input.to_gurobi(model))
 
     def __repr__(self):
         return '(' + str(self.output) + ' = ' + str(self.input) + ')'
@@ -318,6 +365,10 @@ class Relu(Expression):
         enc += '\n' + makeLeq(self.output.to_smtlib(), dm.to_smtlib())
 
         return enc
+
+    def to_gurobi(self, model):
+        c_name = 'ReLU_{layer}_{row}'.format(layer=self.layer, row=self.row)
+        return model.addConstr(self.output.to_gurobi(model) == grb.max_(self.input.to_gurobi(model), 0), name=c_name)
 
     def __repr__(self):
         return str(self.output) + ' =  ReLU(' + str(self.input) + ')'
@@ -378,6 +429,9 @@ class Max(Expression):
 
         return enc
 
+    def to_gurobi(self, model):
+        return model.addConstr(self.output.to_gurobi(model) == grb.max_(self.in_a, self.in_b))
+
     def __repr__(self):
         return str(self.output) +  ' = max(' + str(self.in_a) + ', ' + str(self.in_b) + ')'
 
@@ -419,6 +473,20 @@ class One_hot(Expression):
         enc += '\n' + makeGeq(self.input.to_smtlib(), Sum([l_i_const, Neg(l_i_out)]).to_smtlib())
 
         return enc
+
+    def to_gurobi(self, model):
+        l_i = self.input.getLo()
+        h_i = self.input.getHi_exclusive()
+
+        c_name = 'OneHot_{layer}_{row}'.format(layer=self.layer, row=self.row)
+
+        # convert to greater than
+        # but hi_exclusive - eps would result in normal hi and break > condition
+        # see if this works
+        c1 = model.addConstr(h_i * self.output.to_gurobi(model) >= self.input.to_gurobi(model), name=c_name + '_a')
+        c2 = model.addConstr(self.input.to_gurobi(model) >= (1 - self.output.to_gurobi(model)) * l_i, name=c_name + '_b')
+
+        return c1, c2
 
     def __repr__(self):
         return str(self.output) + ' = OneHot(' + str(self.input) + ')'
@@ -462,6 +530,20 @@ class Greater_Zero(Expression):
 
         return enc
 
+    def to_gurobi(self, model):
+        l = self.lhs.getLo_exclusive()
+        h = self.lhs.getHi()
+
+        c_name = 'Gt0_{layer}_{row}'.format(layer=self.layer, row=self.row)
+
+        # convert to greater than
+        # but lo_exclusive - eps would result in normal lo and break > condition
+        # see if this works
+        c1 = model.addConstr(self.lhs.to_gurobi(model) <= h * self.delta.to_gurobi(model), name=c_name + '_a')
+        c2 = model.addConstr(self.lhs.to_gurobi(model) >= (1 - self.delta.to_gurobi(model)) * l, name=c_name + '_b')
+
+        return c1, c2
+
     def __repr__(self):
         return str(self.lhs) + ' > 0 <==> ' + str(self.delta) + ' = 1'
 
@@ -493,6 +575,9 @@ class Geq(Expression):
 
     def to_smtlib(self):
         return makeGeq(self.lhs.to_smtlib(), self.rhs.to_smtlib())
+
+    def to_gurobi(self, model):
+        return model.addConstr(self.lhs.to_gurobi(model) >= self.rhs.to_gurobi(model))
 
     def __repr__(self):
         return str(self.lhs) + ' >= ' + str(self.rhs)
