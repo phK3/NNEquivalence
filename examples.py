@@ -142,6 +142,22 @@ def exampleEncodeCancer(with_interval_arithmetic=True):
     # if this can be satisfied, then a counterexample to correctness has been found
     print(print_to_smtlib(vars, constraints))
 
+    return vars, constraints
+
+
+def create_cancer_simple_lin_geq_zero():
+    input_los = [1,1,1,1,1,1,8,1,1]
+    input_his = [10,10,10,10,10,10,10,10,10]
+
+    return encode_from_file('ExampleNNs/cancer_simple_lin.h5', input_los, input_his)
+
+
+def create_cancer_simple_lin_geq_zero2():
+    input_los = [9, 1, 1, 1, 1, 1, 8, 1, 1]
+    input_his = [10, 10, 10, 10, 10, 10, 10, 10, 10]
+
+    return encode_from_file('ExampleNNs/cancer_simple_lin.h5', input_los, input_his)
+
 
 def example_runner():
     example_files = ['ExampleNNs/smtlib_files/balance_scale_lin_eq_ia.smt2',
