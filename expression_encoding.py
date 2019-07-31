@@ -175,7 +175,13 @@ def encode_layers(input_vars, layers, net_prefix):
     return vars, constraints
 
 
-def encodeNN(layers, input_lower_bounds, input_upper_bounds, net_prefix):
+def encodeNN(layers, input_lower_bounds, input_upper_bounds, net_prefix, with_one_hot=False):
+    if with_one_hot:
+        _, num_outs, _ = layers[-1]
+
+        oh_layer = ('one_hot', num_outs, None)
+        layers.append(oh_layer)
+
     invars = encode_inputs(input_lower_bounds, input_upper_bounds)
 
     layer_vars, layer_constrains = encode_layers(invars, layers, net_prefix)
@@ -206,7 +212,7 @@ def encode_equivalence_layer(outs1, outs2, mode='normal'):
     return deltas, diffs, constraints
 
 
-def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds, with_one_hot = False):
+def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds, with_one_hot=False):
     if with_one_hot:
         _, num_outs1, _ = layers1[-1]
         _, num_outs2, _ = layers2[-1]
@@ -230,13 +236,13 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
     return vars, constraints
 
 
-def encode_from_file(path, input_lower_bounds, input_upper_bounds):
+def encode_from_file(path, input_lower_bounds, input_upper_bounds, with_one_hot=False):
     kl = KerasLoader()
     kl.load(path)
 
     layers = kl.getHiddenLayers()
 
-    return encodeNN(layers, input_lower_bounds, input_upper_bounds, '')
+    return encodeNN(layers, input_lower_bounds, input_upper_bounds, '', with_one_hot)
 
 
 def encode_equivalence_from_file(path1, path2, input_lower_bounds, input_upper_bounds, with_one_hot=False):
