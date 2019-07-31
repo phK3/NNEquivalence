@@ -1,0 +1,189 @@
+from expression_encoding import encode_from_file
+inputs_los = [0 for i in range(0,64)]
+inputs_his = [16 for i in range(0,64)]
+vars, constraints = encode_from_file('ExampleNNs/mnist8x8_lin.h5', inputs_los, inputs_his)
+from expression_encoding import create_gurobi_model
+model = create_gurobi_model(vars, constraints, name='mnist8x8_find_one')
+Academic license - for non-commercial use only
+var_vec = []
+for i in range(0, 10):
+    var_vec.append(model.getVarByName('x_2_{num}'.format(num=i)))
+    
+for i in range(0, 10):
+    if not i == 1:
+        model.addConstr(var_vec[1] >= var_vec[i])
+        
+from gurobipy import *
+model.setObjective(var_vec[1], GRB.MAXIMIZE)
+model.update()
+model.write('mnist8x8_find_one.lp')
+model.optimize()
+Optimize a model with 67 rows, 218 columns and 2796 nonzeros
+Model has 48 general constraints
+Variable types: 170 continuous, 48 integer (48 binary)
+Coefficient statistics:
+  Matrix range     [1e-04, 1e+00]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 2e+01]
+  RHS range        [2e-03, 2e-01]
+Presolve added 171 rows and 105 columns
+Presolve time: 0.02s
+Presolved: 238 rows, 323 columns, 3186 nonzeros
+Presolved model has 30 SOS constraint(s)
+Variable types: 161 continuous, 162 integer (162 binary)
+Root relaxation: unbounded, 1 iterations, 0.00 seconds
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+     0     0  postponed    0               -          -      -     -    0s
+     0     0  postponed    0               -          -      -     -    0s
+     0     2  postponed    0               -          -      -     -    0s
+H   35    30                       9.0610959          -      -   0.1    0s
+H   41    37                      15.1033491          -      -  16.0    0s
+*   65    37              33      20.3536288          -      -  24.8    0s
+*  312   198              38      24.3902880          -      -  38.0    1s
+*  481   269              40      24.8184087          -      -  33.7    1s
+H  545   350                      36.9129554          -      -  32.9    1s
+*  547   350              31      38.0886912          -      -  32.8    1s
+H  768   475                      75.0257351  384.57877   413%  31.0    2s
+   894   559  188.92341   17   36   75.02574  257.30531   243%  26.6    5s
+* 1290   642              84      75.4761794  150.52076  99.4%  35.3    9s
+  1450   654  113.45528   70   13   75.47618  146.32122  93.9%  34.6   10s
+H 1482   622                      75.9662138  146.32122  92.6%  34.3   10s
+* 1484   593              84      75.9664219  146.32122  92.6%  34.3   10s
+* 3376   691              84      76.1989338  113.79500  49.3%  29.0   12s
+* 4520   765              85      76.7107424  106.26065  38.5%  27.8   13s
+* 4789   767              84      76.8458849  104.96964  36.6%  27.7   13s
+H 5356   758                      77.3344823  102.80766  32.9%  27.1   14s
+  6126   702 infeasible   75        77.33448   99.82933  29.1%  26.5   15s
+H 7154   608                      78.0654364   95.98342  23.0%  25.9   16s
+Cutting planes:
+  MIR: 54
+  Flow cover: 55
+Explored 9155 nodes (223966 simplex iterations) in 17.70 seconds
+Thread count was 4 (of 4 available processors)
+Solution count 10: 78.0654 77.3345 76.8459 ... 38.0887
+Optimal solution found (tolerance 1.00e-04)
+Best objective 7.806543639034e+01, best bound 7.806543639034e+01, gap 0.0000%
+model.printAttr('X')
+    Variable            X 
+-------------------------
+       i_0_2           16 
+       i_0_3           16 
+      i_0_12           16 
+      i_0_14           16 
+      i_0_17           16 
+      i_0_18      7.50205 
+      i_0_19           16 
+      i_0_20           16 
+      i_0_21      5.86282 
+      i_0_23      15.2156 
+      i_0_24           16 
+      i_0_25           16 
+      i_0_27           16 
+      i_0_28           16 
+      i_0_29           16 
+      i_0_32           16 
+      i_0_34           16 
+      i_0_35     0.538355 
+      i_0_36           16 
+      i_0_39           16 
+      i_0_40      5.57992 
+      i_0_41           16 
+      i_0_44           16 
+      i_0_45           16 
+      i_0_48      5.44303 
+      i_0_49           16 
+      i_0_52           16 
+      i_0_53      14.1211 
+      i_0_54           16 
+      i_0_57           16 
+      i_0_58           16 
+      i_0_60           16 
+      i_0_63      13.7811 
+       x_0_0    0.0685999 
+       x_0_1     -20.7041 
+       x_0_2      21.2996 
+       x_0_3      16.2703 
+       x_0_4      -3.2954 
+       x_0_5      23.3989 
+       x_0_6      24.4551 
+       x_0_7      12.8444 
+       x_0_8      16.7974 
+       x_0_9      18.5645 
+      x_0_10     -14.0712 
+      x_0_11     -20.8348 
+      x_0_12      35.1512 
+      x_0_13     -11.4282 
+      x_0_14      46.0472 
+      x_0_15     -31.6113 
+      x_0_17      1.20257 
+      x_0_18     -11.5127 
+      x_0_19     -8.22094 
+      x_0_20      17.3318 
+      x_0_22       -16.52 
+      x_0_23      -13.978 
+      x_0_24     -23.9464 
+      x_0_25      34.9237 
+      x_0_27     -3.28937 
+      x_0_28      23.4099 
+      x_0_29     -11.7185 
+       o_0_0    0.0685999 
+       o_0_2      21.2996 
+       o_0_3      16.2703 
+       o_0_5      23.3989 
+       o_0_6      24.4551 
+       o_0_7      12.8444 
+       o_0_8      16.7974 
+       o_0_9      18.5645 
+      o_0_12      35.1512 
+      o_0_14      46.0472 
+      o_0_17      1.20257 
+      o_0_20      17.3318 
+      o_0_25      34.9237 
+      o_0_28      23.4099 
+       x_1_0      12.1766 
+       x_1_1      70.4152 
+       x_1_3      24.1208 
+       x_1_5      4.69373 
+       x_1_6     -27.4047 
+       x_1_7      42.1875 
+       x_1_8     -15.8413 
+      x_1_10      25.4075 
+      x_1_11     -24.5717 
+      x_1_12      66.2495 
+      x_1_13     -21.4113 
+      x_1_14     -4.36198 
+      x_1_15      41.1923 
+       o_1_0      12.1766 
+       o_1_1      70.4152 
+       o_1_3      24.1208 
+       o_1_5      4.69373 
+       o_1_7      42.1875 
+      o_1_10      25.4075 
+      o_1_12      66.2495 
+      o_1_15      41.1923 
+       x_2_0     -8.41318 
+       x_2_1      78.0654 
+       x_2_2     -29.7324 
+       x_2_3     -32.2368 
+       x_2_4      19.0993 
+       x_2_5     -76.7973 
+       x_2_6     -50.5379 
+       x_2_7     -58.9251 
+       x_2_8       1.0437 
+       x_2_9     -20.7496 
+model.printQuality()
+Solution quality statistics for model mnist8x8_find_one :
+  Maximum violation:
+    Bound       : 0.00000000e+00
+    Constraint  : 2.84217094e-14 (R33)
+    Integrality : 0.00000000e+00
+model.printStats()
+Statistics for model mnist8x8_find_one :
+  Linear constraint matrix    : 67 Constrs, 218 Vars, 2796 NZs
+  Variable types              : 170 Continuous, 48 Integer (48 Binary)
+  General constraints         : 48 Constrs
+  Matrix coefficient range    : [ 9.96198e-05, 1 ]
+  Objective coefficient range : [ 1, 1 ]
+  Variable bound range        : [ 1, 16 ]
+  RHS coefficient range       : [ 0.00150033, 0.222541 ]

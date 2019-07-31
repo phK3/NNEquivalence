@@ -1,0 +1,91 @@
+Optimize a model with 32 rows, 121 columns and 694 nonzeros
+Model has 30 general constraints
+Variable types: 91 continuous, 30 integer (30 binary)
+Coefficient statistics:
+  Matrix range     [1e-05, 2e+00]
+  Objective range  [0e+00, 0e+00]
+  Bounds range     [7e-01, 1e+01]
+  RHS range        [7e-03, 7e-01]
+Presolve added 93 rows and 51 columns
+Presolve time: 0.03s
+Presolved: 125 rows, 172 columns, 906 nonzeros
+Presolved model has 18 SOS constraint(s)
+Variable types: 86 continuous, 86 integer (86 binary)
+Found heuristic solution: objective 0.0000000
+Explored 0 nodes (0 simplex iterations) in 0.03 seconds
+Thread count was 4 (of 4 available processors)
+Solution count 1: 0 
+Optimal solution found (tolerance 1.00e-04)
+Best objective 0.000000000000e+00, best bound 0.000000000000e+00, gap 0.0000%
+model.printAttr('X')
+    Variable            X 
+-------------------------
+       i_0_0          1.1 
+       i_0_1       3.5281 
+       i_0_2     -1.97759 
+       i_0_3         1.25 
+       i_0_4      3.50305 
+       i_0_5     -1.66431 
+       i_0_6      -1.1257 
+       i_0_7         1.45 
+       i_0_8     -2.73822 
+       i_0_9     -1.86572 
+      i_0_10     -1.02452 
+      i_0_11     -1.56951 
+      i_0_12     -1.01608 
+      i_0_13      3.34773 
+      i_0_14      3.62109 
+      i_0_15     -1.30421 
+      i_0_16     -1.01291 
+      i_0_17     -1.97707 
+      i_0_18     -1.54422 
+      i_0_19      6.52517 
+      i_0_20          0.9 
+      i_0_21      -2.2184 
+      i_0_22     -1.67361 
+      i_0_23      -1.1882 
+      i_0_24     -2.71181 
+      i_0_25     -1.46836 
+      i_0_26     -1.34136 
+      i_0_27     -1.75401 
+      i_0_28     -2.12828 
+      i_0_29      -1.5989 
+       x_0_0     -5.35233 
+       x_0_1     -5.93799 
+       x_0_2     -3.41439 
+       x_0_4     -5.72052 
+       x_0_5     -6.71805 
+       x_0_6       -5.507 
+       x_0_7     -5.52513 
+       x_0_8    -0.848962 
+      x_0_10     -5.28368 
+      x_0_11     -3.80424 
+      x_0_12     -5.52065 
+      x_0_13     -4.41601 
+      x_0_14      3.61851 
+      x_0_15     -3.82755 
+      o_0_14      3.61851 
+       x_1_0      3.60185 
+       x_1_1       2.8774 
+       x_1_2     -0.68261 
+       x_1_3        2e-05 
+       x_1_4      2.85798 
+       x_1_5      2.21803 
+       x_1_6      2.59379 
+       x_1_7      0.71777 
+       o_1_0      3.60185 
+       o_1_1       2.8774 
+       o_1_3        2e-05 
+       o_1_4      2.85798 
+       o_1_5      2.21803 
+       o_1_6      2.59379 
+       o_1_7      0.71777 
+       x_2_0      -2.2823 
+       x_2_1     -1.77668 
+       x_2_2      -3.5609 
+       x_2_3       10.178 
+       x_2_4     -2.00268 
+       x_2_5      4.09098 
+       o_2_3       10.178 
+       o_2_5      4.09098 
+       x_3_0     -7.49317 

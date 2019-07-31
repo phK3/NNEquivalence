@@ -1,0 +1,59 @@
+model.write('grb_cancer_simple_i06_geq_8.lp')
+model.optimize()
+Optimize a model with 13 rows, 46 columns and 121 nonzeros
+Model has 12 general constraints
+Variable types: 34 continuous, 12 integer (12 binary)
+Coefficient statistics:
+  Matrix range     [9e-04, 2e+00]
+  Objective range  [0e+00, 0e+00]
+  Bounds range     [1e+00, 1e+01]
+  RHS range        [3e-02, 2e+00]
+Presolve added 23 rows and 0 columns
+Presolve removed 0 rows and 1 columns
+Presolve time: 0.07s
+Presolved: 36 rows, 45 columns, 126 nonzeros
+Variable types: 21 continuous, 24 integer (24 binary)
+Root relaxation: objective 0.000000e+00, 18 iterations, 0.00 seconds
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+     0     0    0.00000    0    3          -    0.00000      -     -    0s
+H    0     0                       0.0000000    0.00000  0.00%     -    0s
+Explored 1 nodes (18 simplex iterations) in 0.24 seconds
+Thread count was 4 (of 4 available processors)
+Solution count 1: 0 
+Optimal solution found (tolerance 1.00e-04)
+Best objective 0.000000000000e+00, best bound 0.000000000000e+00, gap 0.0000%
+model.printAttr('X')
+    Variable            X 
+-------------------------
+       i_0_0            1 
+       i_0_1            1 
+       i_0_2            1 
+       i_0_3            1 
+       i_0_4            1 
+       i_0_5            1 
+       i_0_6            8 
+       i_0_7            1 
+       i_0_8            1 
+       x_0_0      3.28627 
+       x_0_1      2.03441 
+       x_0_2     0.132168 
+       x_0_3      6.67965 
+       x_0_4       3.3415 
+       x_0_5    -0.596823 
+       x_0_6      2.88702 
+       x_0_7      2.05658 
+       o_0_0      3.28627 
+       o_0_1      2.03441 
+       o_0_2     0.132168 
+       o_0_3      6.67965 
+       o_0_4       3.3415 
+       o_0_6      2.88702 
+       o_0_7      2.05658 
+       x_1_0    -0.992662 
+       x_1_1     0.938987 
+       x_1_2      13.4338 
+       x_1_3     -1.09895 
+       o_1_1     0.938987 
+       o_1_2      13.4338 
+       x_2_0     -10.9839 
