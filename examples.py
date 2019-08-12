@@ -1,7 +1,7 @@
 
 from expression_encoding import encodeNN, encode_maxpool_layer, encode_inputs, \
     pretty_print, interval_arithmetic, encode_linear_layer, encode_relu_layer, \
-    encode_from_file, encode_one_hot, encode_equivalence, print_to_smtlib
+    encode_from_file, encode_one_hot, encode_equivalence, print_to_smtlib, encode_ranking_layer
 from keras_loader import KerasLoader
 import subprocess
 from os import path
@@ -39,6 +39,20 @@ def encodeOneHotExample():
     outs, vars, constraints = encode_one_hot(invars, 1, '')
 
     vars = [invars, vars, outs]
+    constraints = [constraints]
+
+    pretty_print(vars, constraints)
+
+    print('\n### now with interval arithmetic ###')
+    interval_arithmetic(constraints)
+    pretty_print(vars, constraints)
+
+
+def encodeRankingExample():
+    invars = encode_inputs([-1, 0, 1], [-1, 0, 1])
+    permute_matrix, vars, constraints = encode_ranking_layer(invars, 1, '')
+
+    vars = [invars, vars, permute_matrix]
     constraints = [constraints]
 
     pretty_print(vars, constraints)

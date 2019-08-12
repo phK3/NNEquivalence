@@ -571,6 +571,12 @@ class Geq(Expression):
         lrhs = self.rhs.getLo()
         hrhs = self.rhs.getHi()
 
+        if hrhs > hlhs:
+            self.rhs.update_bounds(hrhs, hlhs)
+
+        if lrhs > lrhs:
+            self.lhs.update_bounds(lrhs, hlhs)
+
         if llhs >= hrhs:
             super(Geq, self).update_bounds(1, 1)
         elif hlhs < lrhs:
@@ -610,11 +616,11 @@ class BinMult(Expression):
         bl = self.binvar.getLo()
         bh = self.binvar.getHi()
 
-        l = min(bl * fl, bl * fh, bh * fl, bh * fh)
-        h = max(bl * fl, bl * fh, bh * fl, bh * fh)
+        yl = min(bl * fl, bl * fh, bh * fl, bh * fh)
+        yh = max(bl * fl, bl * fh, bh * fl, bh * fh)
 
-        self.result_var.update_bounds(l, h)
-        super(BinMult, self).update_bounds(l, h)
+        self.result_var.update_bounds(yl, yh)
+        super(BinMult, self).update_bounds(yl, yh)
 
     def to_smtlib(self):
         bigM = Constant(self.factor.getHi(), self.net, self.layer, self.row)
@@ -635,9 +641,9 @@ class BinMult(Expression):
         ret_constr = None
 
         if use_grb_native:
-            model.addConstr((self.binvar.to_gurobi() == 0) >> (self.result_var.to_gurobi() == 0), name=c_name + '_1')
-            ret_constr = model.addConstr((self.binvar.to_gurobi() == 1)
-                                         >> (self.result_var.to_gurobi() == self.factor.to_gurobi()), name=c_name + '_2')
+            model.addConstr((self.binvar.to_gurobi(model) == 0) >> (self.result_var.to_gurobi(model) == 0), name=c_name + '_1')
+            ret_constr = model.addConstr((self.binvar.to_gurobi(model) == 1)
+                                         >> (self.result_var.to_gurobi(model) == self.factor.to_gurobi(model)), name=c_name + '_2')
         else:
             bigM = self.factor.getHi()
 
