@@ -9,8 +9,8 @@ import datetime
 hide_non_deltas = True
 
 
-def flatten(list):
-    for x in list:
+def flatten(collection):
+    for x in collection:
         if isinstance(x, list):
             for y in flatten(x):
                 yield y
