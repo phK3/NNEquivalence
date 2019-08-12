@@ -228,8 +228,8 @@ def encode_layers(input_vars, layers, net_prefix):
             if activation == 'ranking':
                 rank_perms, rank_vars, rank_constraints = encode_ranking_layer(invars, i, net_prefix)
                 vars.append(rank_vars)
-                # rank_perms is permutation matrix, flatten s.t. vars can be printed later
-                vars.append(flatten(rank_perms))
+                # rank_perms is permutation matrix !!!
+                vars.append(rank_perms)
                 constraints.append(rank_constraints)
 
     return vars, constraints
