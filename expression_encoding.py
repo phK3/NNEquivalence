@@ -8,8 +8,14 @@ import datetime
 # (for smtlib format)
 hide_non_deltas = True
 
+
 def flatten(list):
-    return [x for sublist in list for x in sublist]
+    for x in list:
+        if isinstance(x, list):
+            for y in flatten(x):
+                yield y
+        else:
+            yield x
 
 
 def makeLeq(lhs, rhs):
