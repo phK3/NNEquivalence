@@ -3,6 +3,11 @@ from numpy import format_float_positional
 import numbers
 import gurobipy as grb
 
+# controls, if gurobi general constraints are used
+# (right now only for binary multiplication)
+# TODO: extend to ReLU, Max, ...
+use_grb_native = True
+
 default_bound = 999999
 epsilon = 1e-8
 
@@ -579,4 +584,70 @@ class Geq(Expression):
 
     def __repr__(self):
         return str(self.lhs) + ' >= ' + str(self.rhs)
+
+
+class BinMult(Expression):
+    # multiplication of a binary variable and another expression
+    # can be linearized and expressed by this expression
+
+    def __init__(self, binvar, factor, result_var):
+        net, layer, row = result_var.getIndex()
+        super(BinMult, self).__init__(net, layer, row)
+        self.binvar = binvar
+        self.factor = factor
+        self.result_var = result_var
+        self.lo = -default_bound
+        self.hi = default_bound
+
+    def tighten_interval(self):
+        self.factor.tighten_interval()
+        fl = self.factor.getLo()
+        fh = self.factor.getHi()
+
+        # 0 <= bl <= bh <= 1
+        bl = self.binvar.getLo()
+        bh = self.binvar.getHi()
+
+        l = min(bl * fl, bl * fh, bh * fl, bh * fh)
+        h = max(bl * fl, bl * fh, bh * fl, bh * fh)
+
+        self.result_var.update_bounds(l, h)
+        super(BinMult, self).update_bounds(l, h)
+
+    def to_smtlib(self):
+        bigM = Constant(self.factor.getHi(), self.net, self.layer, self.row)
+        bigMbinvar = Multiplication(bigM, self.binvar)
+
+        enc = makeLeq(self.result_var.to_smtlib(), bigMbinvar.to_smtlib())
+        enc += '\n' + makeLeq(self.result_var.to_smtlib(), self.factor.to_smtlib())
+        enc += '\n' + makeLeq(Sum([self.factor, Neg(self.result_var)]).to_smtlib(), Sum([bigM, Neg(bigMbinvar)]).to_smtlib())
+
+        return enc
+
+    def to_gurobi(self, model):
+        if not self.binvar.has_grb_var:
+            raise ValueError('Variable {v} has not been registered to gurobi model!'.format(v=self.binvar.name))
+
+        c_name = 'BinMult_{net}_{layer}_{row}'.format(net=self.net, layer=self.layer, row=self.row)
+
+        ret_constr = None
+
+        if use_grb_native:
+            model.addConstr((self.binvar.to_gurobi() == 0) >> (self.result_var.to_gurobi() == 0), name=c_name + '_1')
+            ret_constr = model.addConstr((self.binvar.to_gurobi() == 1)
+                                         >> (self.result_var.to_gurobi() == self.factor.to_gurobi()), name=c_name + '_2')
+        else:
+            bigM = self.factor.getHi()
+
+            model.addConstr(self.result_var.to_gurobi(model) <= bigM * self.binvar.to_gurobi(model), name=c_name + '_1')
+            model.addConstr(self.factor.to_gurobi(model) - self.result_var.to_gurobi(model)
+                            <= (1 - self.binvar.to_gurobi(model)) * bigM, name=c_name + '_2')
+            ret_constr = model.addConstr(self.result_var.to_gurobi(model) <= self.factor.to_gurobi(model), name=c_name + '_3')
+
+        # return last added constraint, don't know what to return instead and all other to_gurobis return a constraint
+        return ret_constr
+
+    def __repr__(self):
+        return str(self.result_var) + ' = BinMult(' + str(self.binvar) + ', ' + str(self.factor) + ')'
+
 
