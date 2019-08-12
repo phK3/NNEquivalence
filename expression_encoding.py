@@ -1,5 +1,5 @@
 
-from expression import Variable, Linear, Relu, Max, Multiplication, Constant, Sum, Neg, One_hot, Greater_Zero, Geq
+from expression import Variable, Linear, Relu, Max, Multiplication, Constant, Sum, Neg, One_hot, Greater_Zero, Geq, BinMult
 from keras_loader import KerasLoader
 import gurobipy as grb
 import datetime
@@ -130,6 +130,53 @@ def encode_one_hot(prev_neurons, layerIndex, netPrefix):
     return outs, (deltas + diffs + max_outs), constraints
 
 
+def encode_ranking_layer(prev_neurons, layerIndex, netPrefix):
+    permute_vars = []
+    res_vars = []
+    outs = []
+
+    order_constrs = []
+    lin_constrs = []
+    permute_constrs = []
+
+    for i in range(len(prev_neurons)):
+        output = Variable(layerIndex, i, netPrefix, 'o')
+        outs.append(output)
+
+        res_vars_i = []
+        permute_vars_i = []
+        for j, neuron in enumerate(prev_neurons):
+            y = Variable(j, i, netPrefix, 'y')
+            pij = Variable(j, i, netPrefix, 'pi', type='Int')
+            res_vars_i.append(y)
+            permute_vars_i.append(pij)
+
+            # TODO: check indexes in BinMult for printing
+            lin_constrs.append(BinMult(pij, neuron, y))
+
+        permute_constrs.append(Linear(Sum(res_vars_i), output))
+
+        res_vars.append(res_vars_i)
+        permute_vars.append(permute_vars_i)
+
+    # o_i >= o_i+1
+    for o, o_next in zip(outs, outs[1:]):
+        order_constrs.append(Geq(o, o_next))
+
+    # doubly stochastic
+    one = Constant(1, netPrefix, layerIndex, 0)
+    for i in range(len(prev_neurons)):
+        # row stochastic
+        permute_constrs.append(Linear(Sum(permute_vars[i]), one))
+
+    for j in range(len(prev_neurons)):
+        # column stochastic
+        permute_constrs.append(Linear(Sum([p[j] for p in permute_vars]), one))
+
+    constraints = permute_constrs + lin_constrs + order_constrs
+    return permute_vars, (res_vars + outs), constraints
+
+
 def encode_layers(input_vars, layers, net_prefix):
 
     def hasLinear(activation):
@@ -171,6 +218,13 @@ def encode_layers(input_vars, layers, net_prefix):
                 constraints.append(oh_constraints)
 
                 invars = oh_outs
+
+            if activation == 'ranking':
+                rank_perms, rank_vars, rank_constraints = encode_ranking_layer(invars, i, net_prefix)
+                vars.append(rank_vars)
+                # rank_perms is permutation matrix, flatten s.t. vars can be printed later
+                vars.append(flatten(rank_perms))
+                constraints.append(rank_constraints)
 
     return vars, constraints
 

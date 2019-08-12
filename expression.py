@@ -594,6 +594,8 @@ class BinMult(Expression):
         net, layer, row = result_var.getIndex()
         super(BinMult, self).__init__(net, layer, row)
         self.binvar = binvar
+        self.binvar.setLo(0)
+        self.binvar.setHi(1)
         self.factor = factor
         self.result_var = result_var
         self.lo = -default_bound
