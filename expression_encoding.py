@@ -179,7 +179,9 @@ def encode_ranking_layer(prev_neurons, layerIndex, netPrefix):
         # column stochastic
         permute_constrs.append(Linear(Sum([p[j] for p in permute_vars]), one))
 
-    constraints = permute_constrs + lin_constrs + order_constrs
+    # lin_constrs before permute_constrs, s.t. interval arithmetic can tighten intervals
+    # as we have no dependency graph, order of constraints is important
+    constraints = lin_constrs + permute_constrs + order_constrs
     return permute_vars, (res_vars + outs), constraints
 
 
