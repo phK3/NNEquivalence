@@ -154,6 +154,9 @@ def encode_ranking_layer(prev_neurons, layerIndex, netPrefix):
         permute_vars_i = []
         for j, neuron in enumerate(prev_neurons):
             y = Variable(j, i, netPrefix, 'y')
+            # !!! careful, because NN rows and columns in index are swapped
+            # p_ij in matrix, but p_j_i in printed output
+            # but for calculation permute matrix is stored as array of rows (as in math)
             pij = Variable(j, i, netPrefix, 'pi', type='Int')
             res_vars_i.append(y)
             permute_vars_i.append(pij)
@@ -280,6 +283,7 @@ def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
         constraints.append(Geq(Sum(deltas), Constant(1, 'E', 1, 0)))
     elif mode == 'diff_one_hot':
         # requires that outs_i are the pi_1_js in of the respective permutation matrices
+        # or input to this layer are one-hot vectors
         terms = []
         x = 1
         for i, (out1, out2) in enumerate(zip(outs1, outs2)):
@@ -306,8 +310,27 @@ def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
     return deltas, diffs, constraints
 
 
-def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds, mode='normal'):
-    if mode == 'one_hot':
+def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds, compared='outputs',
+                       comparator='diff_zero'):
+    '''
+    :param layers1: first neural network as a list of layers of form (activation, num_neurons, weights)
+    :param layers2: second neural network as a list of layers of form (activation, num_neurons, weights)
+    :param input_lower_bounds: list of lower bounds for the input values
+    :param input_upper_bounds: list of upper bounds for the input values
+    :param compared: keyword for which element of the NNs should be compared.
+        outputs - compares the outputs of NN1 and NN2 directly,
+        one_hot - compares one-hot vectors of NN1 and NN2 generated from their output,
+        ranking - compares ranking vectors of NN1 and NN2 generated from their output,
+        ranking_one_hot - compares one-hot vectors of NN1 and NN2 generated from a permutation matrix
+    :param comparator: keyword for how the selected elements should be compared.
+        diff_zero    - elements should be equal
+        diff_one_hot - one-hot vectors should be equal (only works for one-hot encoding)
+        ranking      - ???
+    :return: encoding of the equivalence of NN1 and NN2 as a set of variables and
+        mixed integer linear programming constraints
+    '''
+
+    if compared == 'one_hot':
         _, num_outs1, _ = layers1[-1]
         _, num_outs2, _ = layers2[-1]
 
@@ -317,12 +340,36 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
         oh_layer = ('one_hot', num_outs1, None)
         layers1.append(oh_layer)
         layers2.append(oh_layer)
+    elif compared == 'ranking':
+        _, num_outs1, _ = layers1[-1]
+        _, num_outs2, _ = layers2[-1]
+
+        if not num_outs1 == num_outs2:
+            raise ValueError("both NNs must have the same number of outputs")
+
+        # not sure what to specify as num_neurons (num of sorted outs or num of p_ij in permutation matrix?)
+        ranking_layer = ('ranking', num_outs1, None)
+        layers1.append(ranking_layer)
+        layers2.append(ranking_layer)
 
     invars = encode_inputs(input_lower_bounds, input_upper_bounds)
     net1_vars, net1_constraints = encode_layers(invars, layers1, 'A')
     net2_vars, net2_constraints = encode_layers(invars, layers2, 'B')
 
-    eq_deltas, eq_diffs, eq_constraints = encode_equivalence_layer(net1_vars[-1], net2_vars[-1], mode)
+    if compared in {'outputs', 'one_hot'}:
+        outs1 = net1_vars[-1]
+        outs2 = net2_vars[-1]
+    elif compared == 'ranking_one_hot':
+        matrix1 = net1_vars[-1]
+        matrix2 = net2_vars[-1]
+        outs1 = matrix1[0]
+        outs2 = matrix2[0]
+    else:
+        # default case
+        outs1 = net1_vars[-1]
+        outs2 = net2_vars[-1]
+
+    eq_deltas, eq_diffs, eq_constraints = encode_equivalence_layer(outs1, outs2, comparator)
 
     vars = [invars] + net1_vars + net2_vars + [eq_diffs] + [eq_deltas]
     constraints = net1_constraints + net2_constraints + [eq_constraints]
