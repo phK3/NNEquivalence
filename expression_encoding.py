@@ -1,5 +1,6 @@
 
-from expression import Variable, Linear, Relu, Max, Multiplication, Constant, Sum, Neg, One_hot, Greater_Zero, Geq, BinMult
+from expression import Variable, Linear, Relu, Max, Multiplication, Constant, Sum, Neg, One_hot, Greater_Zero, \
+    Geq, BinMult, Gt_Int
 from keras_loader import KerasLoader
 import gurobipy as grb
 import datetime
@@ -234,15 +235,21 @@ def encode_layers(input_vars, layers, net_prefix):
                 vars.append(rank_perms)
                 constraints.append(rank_constraints)
 
+                invars = rank_perms
+
     return vars, constraints
 
 
-def encodeNN(layers, input_lower_bounds, input_upper_bounds, net_prefix, with_one_hot=False):
-    if with_one_hot:
+def encodeNN(layers, input_lower_bounds, input_upper_bounds, net_prefix, mode='normal'):
+    if mode == 'one_hot':
         _, num_outs, _ = layers[-1]
 
         oh_layer = ('one_hot', num_outs, None)
         layers.append(oh_layer)
+    elif mode == 'ranking':
+        _, num_outs, _ = layers[-1]
+        ranking_layer = ('ranking', num_outs, None)
+        layers.append(ranking_layer)
 
     invars = encode_inputs(input_lower_bounds, input_upper_bounds)
 
@@ -251,31 +258,56 @@ def encodeNN(layers, input_lower_bounds, input_upper_bounds, net_prefix, with_on
     return [invars] + layer_vars, layer_constrains
 
 
-def encode_equivalence_layer(outs1, outs2, mode='normal'):
+def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
     deltas = []
     diffs = []
     constraints = []
 
-    for i, (out1, out2) in enumerate(zip(outs1, outs2)):
-        delta_gt = Variable(0, i, 'E', 'dg', 'Int')
-        delta_lt = Variable(0, i, 'E', 'dl', 'Int')
-        diff = Variable(0, i, 'E', 'x')
+    if mode == 'diff_zero':
+        for i, (out1, out2) in enumerate(zip(outs1, outs2)):
+            delta_gt = Variable(0, i, 'E', 'dg', 'Int')
+            delta_lt = Variable(0, i, 'E', 'dl', 'Int')
+            diff = Variable(0, i, 'E', 'x')
+
+            deltas.append(delta_gt)
+            deltas.append(delta_lt)
+            diffs.append(diff)
+
+            constraints.append(Linear(Sum([out1, Neg(out2)]), diff))
+            constraints.append(Greater_Zero(diff, delta_gt))
+            constraints.append(Greater_Zero(Neg(diff), delta_lt))
+
+        constraints.append(Geq(Sum(deltas), Constant(1, 'E', 1, 0)))
+    elif mode == 'diff_one_hot':
+        # requires that outs_i are the pi_1_js in of the respective permutation matrices
+        terms = []
+        x = 1
+        for i, (out1, out2) in enumerate(zip(outs1, outs2)):
+            const = Constant(x, 'E', 0, i)
+            terms.append(Multiplication(const, out1))
+            terms.append(Neg(Multiplication(const, out2)))
+            x *= 2
+
+        sumvar = Variable(1, 0, 'E', 's', 'Int')
+        constraints.append(Linear(Sum(terms), sumvar))
+
+        delta_gt = Variable(0, 0, 'E', 'dg', 'Int')
+        delta_lt = Variable(0, 0, 'E', 'dl', 'Int')
+        zero = Constant(0, delta_lt.net, 0, 0)
+
+        constraints.append(Gt_Int(sumvar, zero, delta_gt))
+        constraints.append(Gt_Int(zero, sumvar, delta_lt))
+        constraints.append(Geq(Sum([delta_lt, delta_gt]), Constant(1, 'E', 1, 0)))
 
         deltas.append(delta_gt)
         deltas.append(delta_lt)
-        diffs.append(diff)
 
-        constraints.append(Linear(Sum([out1, Neg(out2)]), diff))
-        constraints.append(Greater_Zero(diff, delta_gt))
-        constraints.append(Greater_Zero(Neg(diff), delta_lt))
-
-    constraints.append(Geq(Sum(deltas), Constant(1, 'E', 1, 0)))
 
     return deltas, diffs, constraints
 
 
-def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds, with_one_hot=False):
-    if with_one_hot:
+def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds, mode='normal'):
+    if mode == 'one_hot':
         _, num_outs1, _ = layers1[-1]
         _, num_outs2, _ = layers2[-1]
 
@@ -290,7 +322,7 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
     net1_vars, net1_constraints = encode_layers(invars, layers1, 'A')
     net2_vars, net2_constraints = encode_layers(invars, layers2, 'B')
 
-    eq_deltas, eq_diffs, eq_constraints = encode_equivalence_layer(net1_vars[-1], net2_vars[-1])
+    eq_deltas, eq_diffs, eq_constraints = encode_equivalence_layer(net1_vars[-1], net2_vars[-1], mode)
 
     vars = [invars] + net1_vars + net2_vars + [eq_diffs] + [eq_deltas]
     constraints = net1_constraints + net2_constraints + [eq_constraints]
@@ -298,16 +330,16 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
     return vars, constraints
 
 
-def encode_from_file(path, input_lower_bounds, input_upper_bounds, with_one_hot=False):
+def encode_from_file(path, input_lower_bounds, input_upper_bounds, mode='normal'):
     kl = KerasLoader()
     kl.load(path)
 
     layers = kl.getHiddenLayers()
 
-    return encodeNN(layers, input_lower_bounds, input_upper_bounds, '', with_one_hot)
+    return encodeNN(layers, input_lower_bounds, input_upper_bounds, '', mode)
 
 
-def encode_equivalence_from_file(path1, path2, input_lower_bounds, input_upper_bounds, with_one_hot=False):
+def encode_equivalence_from_file(path1, path2, input_lower_bounds, input_upper_bounds, mode='normal'):
     kl1 = KerasLoader()
     kl1.load(path1)
     layers1 = kl1.getHiddenLayers()
@@ -316,7 +348,7 @@ def encode_equivalence_from_file(path1, path2, input_lower_bounds, input_upper_b
     kl2.load(path2)
     layers2 = kl2.getHiddenLayers()
 
-    return encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds, with_one_hot)
+    return encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds, mode)
 
 
 
