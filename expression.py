@@ -551,6 +551,81 @@ class Greater_Zero(Expression):
         return str(self.lhs) + ' > 0 <==> ' + str(self.delta) + ' = 1'
 
 
+class Gt_Int(Expression):
+
+    def __init__(self, lhs, rhs, delta):
+        net, layer, row = lhs.getIndex()
+        super(Gt_Int, self).__init__(net, layer, row)
+        self.lhs = lhs
+        self.rhs = rhs
+        self.delta = delta
+        self.delta.setLo(0)
+        self.delta.setHi(1)
+        self.lo = 0
+        self.hi = 1
+
+    def tighten_interval(self):
+        self.lhs.tighten_interval()
+        self.rhs.tighten_interval()
+        ll = self.lhs.getLo()
+        hl = self.lhs.getHi()
+        lr = self.rhs.getLo()
+        hr = self.rhs.getHi()
+
+        if hr > hl:
+            self.rhs.update_bounds(hr, hl)
+
+        if lr > ll:
+            self.lhs.update_bounds(lr, hl)
+
+        if ll > hr:
+            self.delta.update_bounds(1, 1)
+            super(Gt_Int, self).update_bounds(1, 1)
+        elif hl <= lr:
+            self.delta.update_bounds(0, 0)
+            super(Gt_Int, self).update_bounds(0, 0)
+
+    def to_smtlib(self):
+        one = Constant(1, self.net, self.layer, self.row)
+
+        constr1 = Sum([Neg(self.lhs), self.rhs, one])
+        bigM1 = Constant(constr1.getHi(), self.net, self.layer, self.row)
+
+        constr2 = Sum([self.lhs, Neg(self.rhs)])
+        bigM2 = Constant(constr2.getHi(), self.net, self.layer, self.row)
+
+        # delta == 1 -->  lhs - rhs > 0 (>= 1)
+        enc = makeLeq(constr1.to_smtlib(), Sum([bigM1, Neg(Multiplication(bigM1, self.delta))]).to_smtlib())
+        # delta == 0 --> lhs - rhs <= 0
+        enc += '\n' + makeLeq(constr2.to_smtlib(), Multiplication(bigM2, self.delta).to_smtlib())
+
+        return enc
+
+    def to_gurobi(self, model):
+        c_name = 'Gt_Int_{layer}_{row}'.format(layer=self.layer, row=self.row)
+
+        if use_grb_native:
+            c1 = model.addConstr((self.delta.to_gurobi(model) == 1)
+                                 >> self.lhs.to_gurobi(model) - self.rhs.to_gurobi(model) >= 1, name=c_name + '_a')
+            c2 = model.addConstr((self.delta.to_gurobi(model) == 0)
+                                 >> self.lhs.to_gurobi(model) - self.rhs.to_gurobi(model) <= 0, name=c_name + '_b')
+        else:
+            one = Constant(1, self.net, self.layer, self.row)
+            constr1 = Sum([Neg(self.lhs), self.rhs, one])
+            constr2 = Sum([self.lhs, Neg(self.rhs)])
+
+            bigM1 = constr1.getHi()
+            bigM2 = constr2.getHi()
+
+            c1 = model.addConstr(constr1.to_gurobi(model) <= bigM1 * (1 - self.delta.to_gurobi(model)), name=c_name + '_a')
+            c2 = model.addConstr(constr2.to_gurobi(model) <= bigM2 * self.delta.to_gurobi(model), name=c_name + '_b')
+
+        return c1, c2
+
+    def __repr__(self):
+        return str(self.lhs) + ' > ' + str(self.rhs) + ' <==> ' + str(self.delta) + ' = 1'
+
+
 class Geq(Expression):
     # TODO: no return value as no real expression, just a constraint (better idea where to put it?)
     # could return 0/1 but would need more complicated delta stmt instead of just proxy for printing geq
@@ -574,7 +649,7 @@ class Geq(Expression):
         if hrhs > hlhs:
             self.rhs.update_bounds(hrhs, hlhs)
 
-        if lrhs > lrhs:
+        if lrhs > llhs:
             self.lhs.update_bounds(lrhs, hlhs)
 
         if llhs >= hrhs:
