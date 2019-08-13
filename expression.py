@@ -606,9 +606,9 @@ class Gt_Int(Expression):
 
         if use_grb_native:
             c1 = model.addConstr((self.delta.to_gurobi(model) == 1)
-                                 >> self.lhs.to_gurobi(model) - self.rhs.to_gurobi(model) >= 1, name=c_name + '_a')
+                                 >> (self.lhs.to_gurobi(model) - self.rhs.to_gurobi(model) >= 1), name=c_name + '_a')
             c2 = model.addConstr((self.delta.to_gurobi(model) == 0)
-                                 >> self.lhs.to_gurobi(model) - self.rhs.to_gurobi(model) <= 0, name=c_name + '_b')
+                                 >> (self.lhs.to_gurobi(model) - self.rhs.to_gurobi(model) <= 0), name=c_name + '_b')
         else:
             one = Constant(1, self.net, self.layer, self.row)
             constr1 = Sum([Neg(self.lhs), self.rhs, one])

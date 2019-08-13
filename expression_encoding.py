@@ -306,6 +306,8 @@ def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
         deltas.append(delta_gt)
         deltas.append(delta_lt)
 
+        diffs.append(sumvar)
+
 
     return deltas, diffs, constraints
 
@@ -340,7 +342,7 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
         oh_layer = ('one_hot', num_outs1, None)
         layers1.append(oh_layer)
         layers2.append(oh_layer)
-    elif compared == 'ranking':
+    elif compared in {'ranking', 'ranking_one_hot'}:
         _, num_outs1, _ = layers1[-1]
         _, num_outs2, _ = layers2[-1]
 
