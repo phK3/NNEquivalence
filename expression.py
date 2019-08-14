@@ -9,8 +9,8 @@ import gurobipy as grb
 use_grb_native = True
 
 # 999999 1e-8
-default_bound = 1000
-epsilon = 1e-3
+default_bound = 999999
+epsilon = 1e-8
 
 def ffp(x):
     if x < 0:

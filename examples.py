@@ -78,6 +78,69 @@ def encodeEquivalenceExample():
     print(print_to_smtlib(vars, constraints))
 
 
+def testEpsilonEquivalence(desired='equivalent'):
+    if desired == 'equivalent':
+        weights1 = [[0, 1, 0], [0, 0, 1], [1, 0, 0], [0, 0, 0]]
+        weights2 = [[0, 1, 0], [0, 0, 1], [1, 0, 0], [-0.4, 0.2, -0.1]]
+    elif desired == 'different':
+        weights1 = [[0, 1, 0], [0, 0, 1], [1, 0, 0], [0, 0, 0]]
+        weights2 = [[0, 1, 0], [0, 0, 1], [1, 0, 0], [-0.6, 0.6, -0.1]]
+
+    inputs = [3, 5, 7]
+    layers1 = [('relu', 3, weights1)]
+    layers2 = [('relu', 3, weights2)]
+
+    return encode_equivalence(layers1[:], layers2[:], inputs, inputs, 'outputs', 'epsilon_0.5')
+
+def testRankingTopK():
+    inputs = [3,5,7]
+    weights = [[0, 1, 0], [0, 0, 1], [1, 0, 0], [0, 0, 0]]
+    layers = [('relu', 3, weights)]
+
+    # passing layers[:] (copy of layers) is important, because ranking layer is appended to layers
+    return encode_equivalence(layers[:], layers[:], inputs, inputs, 'ranking_top_2', 'ranking_top_2')
+
+
+def encodeEquivalenceWithModes(desired='equivalent', compared='ranking_one_hot', comparator='diff_one_hot'):
+    '''
+
+    :param desired: Desired result of the equivalence check for ranking_one_hot and diff_one_hot
+        the NNs are equivalent under these settings for
+        i_0, i_1 in [-1/4, 1/4] and i_3 in (-9/4, -6/4)
+        Keywords:
+        equivalent - yields input bounds s.t. NNs are equivalent
+        critical - yields input bounds s.t. NNs might be equivalent depending on treatment of interval bounds
+        different - yields input bounds s.t. NNs are different
+        if no keyword is entered, the NNs are compared on the fixed input [2,3,5]
+    :param compared:
+    :param comparator:
+    :return: an encoding of the NNs as vars and constraints, s.t. the outcome is as desired
+    '''
+    if desired == 'equivalent':
+        input_los = [-9.5002, 4.75002, -1]
+        input_his = [-7.5002, 6.75002, 1]
+    elif desired == 'critical':
+        input_los = [-1/4, -1/4, -9/4]
+        input_his = [1/4, 1/4, -6/4]
+    elif desired == 'different':
+        input_los = [-1 / 4, -1 / 4, -10 / 4]
+        input_his = [1 / 4, 1 / 4, -5 / 4]
+    else:
+        input_los = [2,3,5]
+        input_his = input_los
+
+    weights1 = [[1, 5], [2, 6], [3, 7], [4, 8]]
+    weights2 = [[1, 5], [2, 6], [3, 7], [4, 15]]
+
+    layers1 = [('relu', 2, weights1)]
+    layers2 = [('relu', 2, weights2)]
+
+    vars, constraints = encode_equivalence(layers1, layers2, input_los, input_his, compared, comparator)
+
+    return vars, constraints
+
+
+
 def encodeExample():
     invars = encode_inputs([0,1,2], [1,2,3])
 
