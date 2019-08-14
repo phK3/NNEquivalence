@@ -572,11 +572,13 @@ class Gt_Int(Expression):
         lr = self.rhs.getLo()
         hr = self.rhs.getHi()
 
-        if hr > hl:
-            self.rhs.update_bounds(hr, hl)
+        # can't set bounds like this, because upper and lower bounds of rhs/lhs are possible
+        # because of OR in equiv constraint
+        #if hr > hl:
+        #    self.rhs.update_bounds(hr, hl)
 
-        if lr > ll:
-            self.lhs.update_bounds(lr, hl)
+        #if lr > ll:
+        #    self.lhs.update_bounds(lr, hl)
 
         if ll > hr:
             self.delta.update_bounds(1, 1)
