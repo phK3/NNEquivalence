@@ -315,31 +315,21 @@ def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
 
         return oh_deltas, oh_diffs, oh_constraints
 
-    def number_comparison(n1, n2, net, layer, row, desired='different', epsilon=0):
+    def number_comparison(n1, n2, net, layer, row, epsilon=0):
         '''
-        Compares two arbitrary numbers and returns constraints that can only be satisfied,
-        if the numbers are equal/different (depending on the solver up to a certain tolerance)
+        Compares two arbitrary numbers and returns constraints, s.t. one of the deltas is equal to 1, if the numbers
+        are not equal
         :param n1: number
         :param n2: number
         :param net: netPrefix
         :param layer: layer of the net, in which this operation takes place
         :param row: row of the net, in which this operation takes place
-        :param desired: keyword
-            different - the constraints can only be satisfied, if the vectors are different
-            equal - the constraints can only be satisfied, if the vectors are equal
         :return: a tuple of (deltas, diffs, constraints) where constraints are as described above and deltas, diffs
             are variables used in these constraints
         '''
         v_deltas = []
         v_diffs = []
         v_constraints = []
-
-        desired_result = 1
-        if desired == 'different':
-            desired_result = 1
-        elif desired == 'equal':
-            desired_result = 0
-
 
         delta_gt = Variable(layer, row, net, 'dg', 'Int')
         delta_lt = Variable(layer, row, net, 'dl', 'Int')
@@ -369,7 +359,8 @@ def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
         v_deltas.append(delta_gt)
         v_deltas.append(delta_lt)
 
-        v_constraints.append(Geq(Sum(v_deltas), Constant(desired_result, net, layer + 1, row)))
+
+        #v_constraints.append(Geq(Sum(v_deltas), Constant(desired_result, net, layer + 1, row)))
 
         return v_deltas, v_diffs, v_constraints
 
@@ -384,7 +375,7 @@ def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
             eps = float(mode.split('_')[-1])
 
         for i, (out1, out2) in enumerate(zip(outs1, outs2)):
-            n_deltas, n_diffs, n_constraints = number_comparison(out1, out2, 'E', 0, i, desired='different', epsilon=eps)
+            n_deltas, n_diffs, n_constraints = number_comparison(out1, out2, 'E', 0, i, epsilon=eps)
 
             deltas += n_deltas
             diffs += n_diffs

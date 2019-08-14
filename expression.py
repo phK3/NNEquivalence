@@ -8,8 +8,9 @@ import gurobipy as grb
 # TODO: extend to ReLU, Max, ...
 use_grb_native = True
 
-default_bound = 999999
-epsilon = 1e-8
+# 999999 1e-8
+default_bound = 1000
+epsilon = 1e-3
 
 def ffp(x):
     if x < 0:
@@ -543,7 +544,7 @@ class Greater_Zero(Expression):
         c1 = model.addConstr(self.lhs.to_gurobi(model) <= h * self.delta.to_gurobi(model), name=c_name + '_a')
         # convert to greater than
         # with epsilon otherwise, when lhs == 0, delta == 1 would also be ok, with epsilon forced to take 0
-        c2 = model.addConstr(self.lhs.to_gurobi(model) >= (1 - self.delta.to_gurobi(model) + epsilon) * l, name=c_name + '_b')
+        c2 = model.addConstr(self.lhs.to_gurobi(model) - epsilon >= (1 - self.delta.to_gurobi(model)) * l, name=c_name + '_b')
 
         return c1, c2
 
