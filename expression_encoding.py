@@ -263,11 +263,31 @@ def encodeNN(layers, input_lower_bounds, input_upper_bounds, net_prefix, mode='n
 
 def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
 
-    def one_hot_different(oh1, oh2, net, layer, row):
+    def one_hot_comparison(oh1, oh2, net, layer, row, desired='different'):
+        '''
+        Compares two one-hot vectors and returns constraints that can only be satisfied,
+        if the vectors are equal/different
+        :param oh1: one-hot vector
+        :param oh2: one-hot vector
+        :param net: netPrefix
+        :param layer: layer of the net, in which this operation takes place
+        :param row: row of the net, in which this operation takes place
+        :param desired: keyword
+            different - the constraints can only be satisfied, if the vectors are different
+            equal - the constraints can only be satisfied, if the vectors are equal
+        :return: a tuple of (deltas, diffs, constraints) where constraints are as described above and deltas, diffs
+            are variables used in these constraints
+        '''
         # requires that oh_i are one-hot vectors
         oh_deltas = []
         oh_diffs = []
         oh_constraints = []
+
+        desired_result = 1
+        if desired == 'different':
+            desired_result = 1
+        elif desired == 'equal':
+            desired_result = 0
 
         terms = []
         x = 1
@@ -277,16 +297,16 @@ def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
             terms.append(Neg(Multiplication(constant, oh2)))
             x *= 2
 
-        sumvar = Variable(layer + 1, row, net, 's', 'Int')
+        sumvar = Variable(layer, row, net, 's', 'Int')
         oh_constraints.append(Linear(Sum(terms), sumvar))
 
-        delta_gt = Variable(layer + 1, row, net, 'dg', 'Int')
-        delta_lt = Variable(layer + 1, row, net, 'dl', 'Int')
-        zero = Constant(0, net, layer + 1, row)
+        delta_gt = Variable(layer, row, net, 'dg', 'Int')
+        delta_lt = Variable(layer, row, net, 'dl', 'Int')
+        zero = Constant(0, net, layer, row)
 
         oh_constraints.append(Gt_Int(sumvar, zero, delta_gt))
         oh_constraints.append(Gt_Int(zero, sumvar, delta_lt))
-        oh_constraints.append(Geq(Sum([delta_lt, delta_gt]), Constant(1, net, layer + 1, row)))
+        oh_constraints.append(Geq(Sum([delta_lt, delta_gt]), Constant(desired_result, net, layer, row)))
 
         oh_deltas.append(delta_gt)
         oh_deltas.append(delta_lt)
@@ -295,6 +315,48 @@ def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
 
         return oh_deltas, oh_diffs, oh_constraints
 
+    def number_comparison(n1, n2, net, layer, row, desired='different'):
+        '''
+        Compares two arbitrary numbers and returns constraints that can only be satisfied,
+        if the numbers are equal/different (depending on the solver up to a certain tolerance)
+        :param n1: number
+        :param n2: number
+        :param net: netPrefix
+        :param layer: layer of the net, in which this operation takes place
+        :param row: row of the net, in which this operation takes place
+        :param desired: keyword
+            different - the constraints can only be satisfied, if the vectors are different
+            equal - the constraints can only be satisfied, if the vectors are equal
+        :return: a tuple of (deltas, diffs, constraints) where constraints are as described above and deltas, diffs
+            are variables used in these constraints
+        '''
+        v_deltas = []
+        v_diffs = []
+        v_constraints = []
+
+        desired_result = 1
+        if desired == 'different':
+            desired_result = 1
+        elif desired == 'equal':
+            desired_result = 0
+
+
+        delta_gt = Variable(layer, row, net, 'dg', 'Int')
+        delta_lt = Variable(layer, row, net, 'dl', 'Int')
+        diff = Variable(layer, row, net, 'x')
+
+        v_deltas.append(delta_gt)
+        v_deltas.append(delta_lt)
+        v_diffs.append(diff)
+
+        v_constraints.append(Linear(Sum([n1, Neg(n2)]), diff))
+        v_constraints.append(Greater_Zero(diff, delta_gt))
+        v_constraints.append(Greater_Zero(Neg(diff), delta_lt))
+
+        v_constraints.append(Geq(Sum(v_deltas), Constant(desired_result, net, layer + 1, row)))
+
+        return v_deltas, v_diffs, v_constraints
+
 
     deltas = []
     diffs = []
@@ -302,52 +364,29 @@ def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
 
     if mode == 'diff_zero':
         for i, (out1, out2) in enumerate(zip(outs1, outs2)):
-            delta_gt = Variable(0, i, 'E', 'dg', 'Int')
-            delta_lt = Variable(0, i, 'E', 'dl', 'Int')
-            diff = Variable(0, i, 'E', 'x')
+            n_deltas, n_diffs, n_constraints = number_comparison(out1, out2, 'E', 0, i, desired='different')
 
-            deltas.append(delta_gt)
-            deltas.append(delta_lt)
-            diffs.append(diff)
-
-            constraints.append(Linear(Sum([out1, Neg(out2)]), diff))
-            constraints.append(Greater_Zero(diff, delta_gt))
-            constraints.append(Greater_Zero(Neg(diff), delta_lt))
+            deltas += n_deltas
+            diffs += n_diffs
+            constraints += n_constraints
 
         constraints.append(Geq(Sum(deltas), Constant(1, 'E', 1, 0)))
     elif mode == 'diff_one_hot':
         # requires that outs_i are the pi_1_js in of the respective permutation matrices
         # or input to this layer are one-hot vectors
 
-        terms = []
-        x = 1
-        for i, (out1, out2) in enumerate(zip(outs1, outs2)):
-            const = Constant(x, 'E', 0, i)
-            terms.append(Multiplication(const, out1))
-            terms.append(Neg(Multiplication(const, out2)))
-            x *= 2
-
-        sumvar = Variable(1, 0, 'E', 's', 'Int')
-        constraints.append(Linear(Sum(terms), sumvar))
-
-        delta_gt = Variable(0, 0, 'E', 'dg', 'Int')
-        delta_lt = Variable(0, 0, 'E', 'dl', 'Int')
-        zero = Constant(0, delta_lt.net, 0, 0)
-
-        constraints.append(Gt_Int(sumvar, zero, delta_gt))
-        constraints.append(Gt_Int(zero, sumvar, delta_lt))
-        constraints.append(Geq(Sum([delta_lt, delta_gt]), Constant(1, 'E', 1, 0)))
-
-        deltas.append(delta_gt)
-        deltas.append(delta_lt)
-
-        diffs.append(sumvar)
+        deltas, diffs, constraints = one_hot_comparison(outs1, outs2, 'E', 0, 0, desired='different')
     elif mode.startswith('ranking_top_'):
         # assumes outs1 = one-hot vector with maximum output of NN1
         # outs2 = (one-hot biggest, one-hot 2nd biggest, ...) of NN2
+
         k = int(mode.split('_')[-1])
 
-
+        for i in range(k):
+            k_deltas, k_diffs, k_constraints = one_hot_comparison(outs1, outs2[k], 'E', 0, k, desired='different')
+            deltas += k_deltas
+            diffs += k_diffs
+            constraints += k_constraints
 
     return deltas, diffs, constraints
 
