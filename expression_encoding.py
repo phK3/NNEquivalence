@@ -262,6 +262,40 @@ def encodeNN(layers, input_lower_bounds, input_upper_bounds, net_prefix, mode='n
 
 
 def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
+
+    def one_hot_different(oh1, oh2, net, layer, row):
+        # requires that oh_i are one-hot vectors
+        oh_deltas = []
+        oh_diffs = []
+        oh_constraints = []
+
+        terms = []
+        x = 1
+        for i, (oh1, oh2) in enumerate(zip(oh1, oh2)):
+            constant = Constant(x, net, layer, row)
+            terms.append(Multiplication(constant, oh1))
+            terms.append(Neg(Multiplication(constant, oh2)))
+            x *= 2
+
+        sumvar = Variable(layer + 1, row, net, 's', 'Int')
+        oh_constraints.append(Linear(Sum(terms), sumvar))
+
+        delta_gt = Variable(layer + 1, row, net, 'dg', 'Int')
+        delta_lt = Variable(layer + 1, row, net, 'dl', 'Int')
+        zero = Constant(0, net, layer + 1, row)
+
+        oh_constraints.append(Gt_Int(sumvar, zero, delta_gt))
+        oh_constraints.append(Gt_Int(zero, sumvar, delta_lt))
+        oh_constraints.append(Geq(Sum([delta_lt, delta_gt]), Constant(1, net, layer + 1, row)))
+
+        oh_deltas.append(delta_gt)
+        oh_deltas.append(delta_lt)
+
+        oh_diffs.append(sumvar)
+
+        return oh_deltas, oh_diffs, oh_constraints
+
+
     deltas = []
     diffs = []
     constraints = []
@@ -284,6 +318,7 @@ def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
     elif mode == 'diff_one_hot':
         # requires that outs_i are the pi_1_js in of the respective permutation matrices
         # or input to this layer are one-hot vectors
+
         terms = []
         x = 1
         for i, (out1, out2) in enumerate(zip(outs1, outs2)):
@@ -307,6 +342,11 @@ def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
         deltas.append(delta_lt)
 
         diffs.append(sumvar)
+    elif mode.startswith('ranking_top_'):
+        # assumes outs1 = one-hot vector with maximum output of NN1
+        # outs2 = (one-hot biggest, one-hot 2nd biggest, ...) of NN2
+        k = int(mode.split('_')[-1])
+
 
 
     return deltas, diffs, constraints
@@ -322,11 +362,13 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
     :param compared: keyword for which element of the NNs should be compared.
         outputs - compares the outputs of NN1 and NN2 directly,
         one_hot - compares one-hot vectors of NN1 and NN2 generated from their output,
-        ranking - compares ranking vectors of NN1 and NN2 generated from their output,
+        ranking_top_k - checks, whether greatest output of NN1 is within top k outputs of NN2 (k is a natural number)
+        ranking - (not supported yet) compares ranking vectors of NN1 and NN2 generated from their output,
         ranking_one_hot - compares one-hot vectors of NN1 and NN2 generated from a permutation matrix
     :param comparator: keyword for how the selected elements should be compared.
         diff_zero    - elements should be equal
         diff_one_hot - one-hot vectors should be equal (only works for one-hot encoding)
+        ranking_top_k - one-hot vector of NN1 should be within top k ranked outputs of NN2
         ranking      - ???
     :return: encoding of the equivalence of NN1 and NN2 as a set of variables and
         mixed integer linear programming constraints
@@ -342,7 +384,7 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
         oh_layer = ('one_hot', num_outs1, None)
         layers1.append(oh_layer)
         layers2.append(oh_layer)
-    elif compared in {'ranking', 'ranking_one_hot'}:
+    elif compared in {'ranking', 'ranking_one_hot'} or compared.startswith('ranking_top_'):
         _, num_outs1, _ = layers1[-1]
         _, num_outs2, _ = layers2[-1]
 
@@ -366,6 +408,13 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
         matrix2 = net2_vars[-1]
         outs1 = matrix1[0]
         outs2 = matrix2[0]
+    elif compared.startswith('ranking_top_'):
+        k = int(compared.split('_')[-1])
+
+        matrix1 = net1_vars[-1]
+        matrix2 = net2_vars[-1]
+        outs1 = matrix1[0]
+        outs2 = matrix2[0:k]
     else:
         # default case
         outs1 = net1_vars[-1]
