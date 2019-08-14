@@ -315,7 +315,7 @@ def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
 
         return oh_deltas, oh_diffs, oh_constraints
 
-    def number_comparison(n1, n2, net, layer, row, desired='different'):
+    def number_comparison(n1, n2, net, layer, row, desired='different', epsilon=0):
         '''
         Compares two arbitrary numbers and returns constraints that can only be satisfied,
         if the numbers are equal/different (depending on the solver up to a certain tolerance)
@@ -343,15 +343,31 @@ def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
 
         delta_gt = Variable(layer, row, net, 'dg', 'Int')
         delta_lt = Variable(layer, row, net, 'dl', 'Int')
-        diff = Variable(layer, row, net, 'x')
+
+        if epsilon > 0:
+            eps = Constant(epsilon, net, layer + 1, row)
+            diff_minus_eps = Variable(layer, row, net, 'x_m')
+            diff_plus_eps = Variable(layer, row, net, 'x_p')
+
+            v_constraints.append(Linear(Sum([n2, Neg(n1), Neg(eps)]), diff_minus_eps))
+            v_constraints.append(Linear(Sum([n2, Neg(n1), eps]), diff_plus_eps))
+
+            v_constraints.append(Greater_Zero(diff_minus_eps, delta_gt))
+            v_constraints.append(Greater_Zero(Neg(diff_plus_eps), delta_lt))
+
+            v_diffs.append(diff_minus_eps)
+            v_diffs.append(diff_plus_eps)
+        else:
+            diff = Variable(layer, row, net, 'x')
+
+            v_constraints.append(Linear(Sum([n1, Neg(n2)]), diff))
+            v_constraints.append(Greater_Zero(diff, delta_gt))
+            v_constraints.append(Greater_Zero(Neg(diff), delta_lt))
+
+            v_diffs.append(diff)
 
         v_deltas.append(delta_gt)
         v_deltas.append(delta_lt)
-        v_diffs.append(diff)
-
-        v_constraints.append(Linear(Sum([n1, Neg(n2)]), diff))
-        v_constraints.append(Greater_Zero(diff, delta_gt))
-        v_constraints.append(Greater_Zero(Neg(diff), delta_lt))
 
         v_constraints.append(Geq(Sum(v_deltas), Constant(desired_result, net, layer + 1, row)))
 
