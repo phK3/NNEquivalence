@@ -574,6 +574,7 @@ class Gt_Int(Expression):
 
         # can't set bounds like this, because upper and lower bounds of rhs/lhs are possible
         # because of OR in equiv constraint
+        # TODO: tighten bounds depending on bounds of delta
         #if hr > hl:
         #    self.rhs.update_bounds(hr, hl)
 
