@@ -378,9 +378,13 @@ def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
     diffs = []
     constraints = []
 
-    if mode == 'diff_zero':
+    if mode == 'diff_zero' or mode.startswith('epsilon_'):
+        eps = 0
+        if mode.startswith('epsilon_'):
+            eps = float(mode.split('_')[-1])
+
         for i, (out1, out2) in enumerate(zip(outs1, outs2)):
-            n_deltas, n_diffs, n_constraints = number_comparison(out1, out2, 'E', 0, i, desired='different')
+            n_deltas, n_diffs, n_constraints = number_comparison(out1, out2, 'E', 0, i, desired='different', epsilon=eps)
 
             deltas += n_deltas
             diffs += n_diffs
@@ -424,6 +428,8 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
         ranking_one_hot - compares one-hot vectors of NN1 and NN2 generated from a permutation matrix
     :param comparator: keyword for how the selected elements should be compared.
         diff_zero    - elements should be equal
+        epsilon_e   - elements of output vector of NN2 should not differ by more than epsilon from the
+                        respective output element of NN1. Epsilon is equal to e (any positive number entered)
         diff_one_hot - one-hot vectors should be equal (only works for one-hot encoding)
         ranking_top_k - one-hot vector of NN1 should be within top k ranked outputs of NN2
         ranking      - ???
@@ -457,6 +463,9 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
     net1_vars, net1_constraints = encode_layers(invars, layers1, 'A')
     net2_vars, net2_constraints = encode_layers(invars, layers2, 'B')
 
+    # should never be used
+    outs1 = net1_vars[-1]
+    outs2 = net2_vars[-1]
     if compared in {'outputs', 'one_hot'}:
         outs1 = net1_vars[-1]
         outs2 = net2_vars[-1]
@@ -475,8 +484,6 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
     else:
         # default case
         raise ValueError('There is no ' + compared + ' keyword for param compared!!!')
-        outs1 = net1_vars[-1]
-        outs2 = net2_vars[-1]
 
     eq_deltas, eq_diffs, eq_constraints = encode_equivalence_layer(outs1, outs2, comparator)
 
