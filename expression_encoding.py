@@ -383,10 +383,12 @@ def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
         k = int(mode.split('_')[-1])
 
         for i in range(k):
-            k_deltas, k_diffs, k_constraints = one_hot_comparison(outs1, outs2[k], 'E', 0, k, desired='different')
+            k_deltas, k_diffs, k_constraints = one_hot_comparison(outs1, outs2[i], 'E', 0, i, desired='different')
             deltas += k_deltas
             diffs += k_diffs
             constraints += k_constraints
+    else:
+        raise ValueError('There is no \'' + mode + '\' keyword for parameter mode')
 
     return deltas, diffs, constraints
 
@@ -456,6 +458,7 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
         outs2 = matrix2[0:k]
     else:
         # default case
+        raise ValueError('There is no ' + compared + ' keyword for param compared!!!')
         outs1 = net1_vars[-1]
         outs2 = net2_vars[-1]
 
