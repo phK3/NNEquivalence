@@ -738,3 +738,69 @@ class BinMult(Expression):
         return str(self.result_var) + ' = BinMult(' + str(self.binvar) + ', ' + str(self.factor) + ')'
 
 
+class Impl(Expression):
+    # Implication: delta = c --> lhs <= rhs , for binary constant c
+
+    def __init__(self, delta, constant, lhs, rhs):
+        net, layer, row = delta.getIndex()
+        super(Impl, self).__init__(net, layer, row)
+        self.delta = delta
+        self.delta.setLo(0)
+        self.delta.setHi(1)
+        self.constant = constant
+        self.lhs = lhs
+        self.rhs = rhs
+        self.lo = 0
+        self.hi = 1
+
+    def tighten_interval(self):
+        self.lhs.tighten_interval()
+        self.rhs.tighten_interval()
+
+        # consequence of implication has to be true
+        if (self.delta.getLo() == 1 and self.constant == 1) or (self.delta.getHi() == 0 and self.constant == 0):
+            self.lhs.update_bounds(self.lhs.getLo(), self.rhs.getHi())
+            self.rhs.update_bounds(self.lhs.getLo(), self.rhs.getHi())
+
+        # antecedent has to be false
+        if self.rhs.getHi() < self.lhs.getLo():
+            self.delta.update_bounds(1 - self.constant, 1 - self.constant)
+            self.update_bounds(1 - self.constant, 1 - self.constant)
+
+    def to_smtlib(self):
+        term = Sum([self.lhs, Neg(self.rhs)])
+        bigM = Constant(term.getHi(), self.net, self.layer, self.row)
+
+        if self.constant == 0:
+            enc = makeLeq(term.to_smtlib(), Multiplication(bigM, self.delta).to_smtlib())
+        else:
+            enc = makeLeq(term.to_smtlib(), Sum([bigM, Neg(Multiplication(bigM, self.delta))]).to_smtlib())
+
+        return enc
+
+    def to_gurobi(self, model):
+        if not self.delta.has_grb_var:
+            raise ValueError('Variable {v} has not been registered to gurobi model!'.format(v=self.delta.name))
+
+        c_name = 'Impl_{net}_{layer}_{row}'.format(net=self.net, layer=self.layer, row=self.row)
+
+        ret_constr = None
+
+        if use_grb_native:
+            ret_constr = model.addConstr((self.delta.to_gurobi(model) == self.constant)
+                                         >> (self.lhs.to_gurobi(model) <= self.rhs.to_gurobi(model)),
+                            name=c_name)
+        else:
+            term = Sum([self.lhs, Neg(self.rhs)])
+            bigM = term.getHi()
+
+            if self.constant == 0:
+                ret_constr = model.addConstr(term.to_gurobi(model) <= bigM * self.delta.to_gurobi(model), name=c_name)
+            else:
+                ret_constr = model.addConstr(term.to_gurobi(model) <= bigM * (1 - self.delta.to_gurobi(model)), name=c_name)
+
+        return ret_constr
+
+    def __repr__(self):
+        return '{d} = {c} --> {left} <= {right}'.format(d=str(self.delta),
+                                                        c=str(self.constant), left=str(self.lhs), right=str(self.rhs))
