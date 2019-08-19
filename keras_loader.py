@@ -89,3 +89,9 @@ class KerasLoader(NNLoader):
             layers.append((activation, numNeurons, weights))
 
         return layers
+
+    def get_overview(self):
+        print('Inputs: ' + str(self.getNumInputs()))
+
+        for i, (activation, numNeurons, _ )in enumerate(self.getHiddenLayers()):
+            print('Layer_{idx}: {neurons} -- {function}'.format(idx=i+1, neurons=numNeurons, function=activation))
