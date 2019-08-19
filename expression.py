@@ -731,6 +731,9 @@ class BinMult(Expression):
                             <= (1 - self.binvar.to_gurobi(model)) * bigM, name=c_name + '_2')
             ret_constr = model.addConstr(self.result_var.to_gurobi(model) <= self.factor.to_gurobi(model), name=c_name + '_3')
 
+            smallM = self.factor.getLo()
+            model.addConstr(self.result_var.to_gurobi(model) >= smallM * self.binvar.to_gurobi(model), name=c_name + '_4')
+
         # return last added constraint, don't know what to return instead and all other to_gurobis return a constraint
         return ret_constr
 
