@@ -373,8 +373,22 @@ class Relu(Expression):
         return enc
 
     def to_gurobi(self, model):
-        c_name = 'ReLU_{layer}_{row}'.format(layer=self.layer, row=self.row)
-        return model.addConstr(self.output.to_gurobi(model) == grb.max_(self.input.to_gurobi(model), 0), name=c_name)
+        c_name = 'ReLU_{n}_{layer}_{row}'.format(n=self.net, layer=self.layer, row=self.row)
+        ret_constr = None
+        if use_grb_native:
+            ret_constr = model.addConstr(self.output.to_gurobi(model) == grb.max_(self.input.to_gurobi(model), 0), name=c_name)
+        else:
+            bigM = self.input.getHi()
+            model.addConstr(self.output.to_gurobi(model) >= 0, name=c_name + '_a')
+            model.addConstr(self.output.to_gurobi(model) >= self.input.to_gurobi(model), name=c_name + '_b')
+            model.addConstr(self.input.to_gurobi(model) - bigM * self.delta.to_gurobi(model) <= 0, name=c_name + '_c')
+            model.addConstr(self.input.to_gurobi(model) + (1 - self.delta.to_gurobi(model)) * bigM
+                            >= 0, name=c_name + '_d')
+            model.addConstr(self.output.to_gurobi(model)
+                            <= self.input.to_gurobi(model) + (1 - self.delta.to_gurobi(model)) * bigM, name=c_name + '_e')
+            ret_constr = model.addConstr(self.output.to_gurobi(model) <= self.delta.to_gurobi(model) * bigM, name=c_name + '_f')
+        return ret_constr
+
 
     def __repr__(self):
         return str(self.output) + ' =  ReLU(' + str(self.input) + ')'
