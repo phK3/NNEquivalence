@@ -414,12 +414,13 @@ def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
 
         order_constrs = []
         deltas = []
-        for i in range(k):
-            for j in range(k, len(outs2)):
-                delta_ij = Variable(j, i, 'E', 'd', type='Int')
-                deltas.append(delta_ij)
-                # o_i < o_j --> d = 1
-                order_constrs.append(Impl(delta_ij, 0, Neg(ordered2[i]), Neg(ordered2[j])))
+        for i in range(k, len(outs2)):
+            delta_i = Variable(0, i, 'E', 'd', type='Int')
+            deltas.append(delta_i)
+            # o_1 < o_i --> d = 1
+            order_constrs.append(Impl(delta_i, 0, Neg(ordered2[0]), Neg(ordered2[i])))
+
+        order_constrs.append(Geq(Sum(deltas), Constant(1, 'E', 0, 0)))
 
         constraints = mat_constrs + order_constrs
         diffs = res_vars
