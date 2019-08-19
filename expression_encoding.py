@@ -1,6 +1,6 @@
 
 from expression import Variable, Linear, Relu, Max, Multiplication, Constant, Sum, Neg, One_hot, Greater_Zero, \
-    Geq, BinMult, Gt_Int
+    Geq, BinMult, Gt_Int, Impl
 from keras_loader import KerasLoader
 import gurobipy as grb
 import datetime
@@ -401,6 +401,28 @@ def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
             deltas += k_deltas
             diffs += k_diffs
             constraints += k_constraints
+    elif mode.startswith('one_ranking_top_'):
+        # assumes outs1 = permutation matrix of NN1
+        # outs2 = outputs of NN1
+
+        k = int(mode.split('_')[-1])
+
+        matrix = outs1
+        ordered2 = [Variable(0, i, 'E', 'o') for i in range(len(outs2))]
+
+        res_vars, mat_constrs = encode_binmult_matrix(outs2, 0, 'E', matrix, ordered2)
+
+        order_constrs = []
+        deltas = []
+        for i in range(k):
+            for j in range(k, len(outs2)):
+                delta_ij = Variable(j, i, 'E', 'd', type='Int')
+                deltas.append(delta_ij)
+                # o_i < o_j --> d = 1
+                order_constrs.append(Impl(delta_ij, 0, Neg(ordered2[i]), Neg(ordered2[j])))
+
+        constraints = mat_constrs + order_constrs
+        diffs = res_vars
     else:
         raise ValueError('There is no \'' + mode + '\' keyword for parameter mode')
 
@@ -420,6 +442,8 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
         ranking_top_k - checks, whether greatest output of NN1 is within top k outputs of NN2 (k is a natural number)
         ranking - (not supported yet) compares ranking vectors of NN1 and NN2 generated from their output,
         ranking_one_hot - compares one-hot vectors of NN1 and NN2 generated from a permutation matrix
+        one_ranking_top_k - calculates one permutation matrix on outputs of NN1 and checks, for sortedness between
+                            top k outputs of NN2 and the rest of the outputs
     :param comparator: keyword for how the selected elements should be compared.
         diff_zero    - elements should be equal
         epsilon_e   - elements of output vector of NN2 should not differ by more than epsilon from the
@@ -427,6 +451,8 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
         diff_one_hot - one-hot vectors should be equal (only works for one-hot encoding)
         ranking_top_k - one-hot vector of NN1 should be within top k ranked outputs of NN2
         ranking      - ???
+        one_ranking_top_k - calculates one permutation matrix on outputs of NN1 and checks, for sortedness between
+                            top k outputs of NN2 and the rest of the outputs
     :return: encoding of the equivalence of NN1 and NN2 as a set of variables and
         mixed integer linear programming constraints
     '''
@@ -452,6 +478,17 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
         ranking_layer = ('ranking', num_outs1, None)
         layers1.append(ranking_layer)
         layers2.append(ranking_layer)
+    elif compared.startswith('one_ranking_top_'):
+        _, num_outs1, _ = layers1[-1]
+        _, num_outs2, _ = layers2[-1]
+
+        if not num_outs1 == num_outs2:
+            raise ValueError("both NNs must have the same number of outputs")
+
+        # not sure what to specify as num_neurons (num of sorted outs or num of p_ij in permutation matrix?)
+        ranking_layer = ('ranking', num_outs1, None)
+        layers1.append(ranking_layer)
+
 
     invars = encode_inputs(input_lower_bounds, input_upper_bounds)
     net1_vars, net1_constraints = encode_layers(invars, layers1, 'A')
@@ -475,6 +512,13 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
         matrix2 = net2_vars[-1]
         outs1 = matrix1[0]
         outs2 = matrix2[0:k]
+    elif compared.startswith('one_ranking_top_'):
+        k = int(compared.split('_')[-1])
+
+        matrix1 = net1_vars[-1]
+
+        outs1 = matrix1
+        outs2 = net2_vars[-1]
     else:
         # default case
         raise ValueError('There is no ' + compared + ' keyword for param compared!!!')
