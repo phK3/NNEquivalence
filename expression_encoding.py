@@ -417,13 +417,14 @@ def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
         for i in range(k, len(outs2)):
             delta_i = Variable(0, i, 'E', 'd', type='Int')
             deltas.append(delta_i)
-            # o_1 < o_i --> d = 1
-            order_constrs.append(Impl(delta_i, 0, Neg(ordered2[0]), Neg(ordered2[i])))
+            # o_1 < o_i <--> d = 1
+            # 0 < o_i - o_1 <--> d = 1
+            order_constrs.append(Greater_Zero(Sum([ordered2[i], Neg(ordered2[0])]), delta_i))
 
         order_constrs.append(Geq(Sum(deltas), Constant(1, 'E', 0, 0)))
 
         constraints = mat_constrs + order_constrs
-        diffs = res_vars
+        diffs = res_vars + ordered2
     else:
         raise ValueError('There is no \'' + mode + '\' keyword for parameter mode')
 
