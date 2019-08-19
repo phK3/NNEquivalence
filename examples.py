@@ -94,6 +94,25 @@ def testEpsilonEquivalence(desired='equivalent'):
 
     return encode_equivalence(layers1[:], layers2[:], inputs, inputs, 'outputs', 'epsilon_0.5')
 
+
+def testOneMatrixRanking(desired='equivalent'):
+    ins = [3,5,7]
+    # identity matrix, no biases
+    weights1 = [[1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, 0]]
+    layers1 = [('linear', 3, weights1)]
+
+    if desired == 'equivalent':
+        # output for ins: [9,8,17]
+        weights2 = [[1, 0, 0], [0, 1, 0], [0, 0, 1], [6, 3, 10]]
+        layers2 = [('linear', 3, weights2)]
+    else:
+        # output for ins: [17,9,8]
+        weights2 = [[1, 0, 0], [0, 1, 0], [0, 0, 1], [14, 4, 1]]
+        layers2 = [('linear', 3, weights2)]
+
+    return encode_equivalence(layers1[:], layers2[:], ins, ins, compared='one_ranking_top_2', comparator='one_ranking_top_2')
+
+
 def testRankingTopK():
     inputs = [3,5,7]
     weights = [[0, 1, 0], [0, 0, 1], [1, 0, 0], [0, 0, 0]]
