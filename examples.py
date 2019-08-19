@@ -61,6 +61,8 @@ def encodeRankingExample():
     interval_arithmetic(constraints)
     pretty_print(vars, constraints)
 
+    return vars, constraints
+
 
 def encodeEquivalenceExample():
     inputs = [-3/2, 0]
