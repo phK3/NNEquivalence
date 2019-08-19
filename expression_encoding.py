@@ -137,37 +137,42 @@ def encode_one_hot(prev_neurons, layerIndex, netPrefix):
     return outs, (deltas + diffs + max_outs), constraints
 
 
-def encode_ranking_layer(prev_neurons, layerIndex, netPrefix):
-    permute_vars = []
+def encode_binmult_matrix(prev_neurons, layerIndex, netPrefix, matrix, outs):
     res_vars = []
-    outs = []
 
-    order_constrs = []
     lin_constrs = []
     permute_constrs = []
 
     for i in range(len(prev_neurons)):
-        output = Variable(layerIndex, i, netPrefix, 'o')
-        outs.append(output)
-
         res_vars_i = []
-        permute_vars_i = []
         for j, neuron in enumerate(prev_neurons):
             y = Variable(j, i, netPrefix, 'y')
-            # !!! careful, because NN rows and columns in index are swapped
-            # p_ij in matrix, but p_j_i in printed output
-            # but for calculation permute matrix is stored as array of rows (as in math)
-            pij = Variable(j, i, netPrefix, 'pi', type='Int')
             res_vars_i.append(y)
-            permute_vars_i.append(pij)
 
             # TODO: check indexes in BinMult for printing
-            lin_constrs.append(BinMult(pij, neuron, y))
+            lin_constrs.append(BinMult(matrix[i][j], neuron, y))
 
-        permute_constrs.append(Linear(Sum(res_vars_i), output))
+        permute_constrs.append(Linear(Sum(res_vars_i), outs[i]))
 
         res_vars.append(res_vars_i)
-        permute_vars.append(permute_vars_i)
+
+    # lin_constrs before permute_constrs, s.t. interval arithmetic can tighten intervals
+    # as we have no dependency graph, order of constraints is important
+    return res_vars, (lin_constrs + permute_constrs)
+
+
+def encode_ranking_layer(prev_neurons, layerIndex, netPrefix):
+    order_constrs = []
+
+    n = len(prev_neurons)
+    outs = [Variable(layerIndex, i, netPrefix, 'o') for i in range(n)]
+    # !!! careful, because NN rows and columns in index are swapped
+    # p_ij in matrix, but p_j_i in printed output
+    # but for calculation permute matrix is stored as array of rows (as in math)
+    permute_matrix = [[Variable(j, i, netPrefix, 'pi', type='Int') for j in range(n)] for i in range(n)]
+
+    # perm_matrix * prev_neurons = outs
+    res_vars, permute_constrs = encode_binmult_matrix(prev_neurons, layerIndex, netPrefix, permute_matrix, outs)
 
     # o_i >= o_i+1
     for o, o_next in zip(outs, outs[1:]):
@@ -177,16 +182,14 @@ def encode_ranking_layer(prev_neurons, layerIndex, netPrefix):
     one = Constant(1, netPrefix, layerIndex, 0)
     for i in range(len(prev_neurons)):
         # row stochastic
-        permute_constrs.append(Linear(Sum(permute_vars[i]), one))
+        permute_constrs.append(Linear(Sum(permute_matrix[i]), one))
 
     for j in range(len(prev_neurons)):
         # column stochastic
-        permute_constrs.append(Linear(Sum([p[j] for p in permute_vars]), one))
+        permute_constrs.append(Linear(Sum([p[j] for p in permute_matrix]), one))
 
-    # lin_constrs before permute_constrs, s.t. interval arithmetic can tighten intervals
-    # as we have no dependency graph, order of constraints is important
-    constraints = lin_constrs + permute_constrs + order_constrs
-    return permute_vars, (res_vars + outs), constraints
+    constraints = permute_constrs + order_constrs
+    return permute_matrix, (res_vars + outs), constraints
 
 
 def encode_layers(input_vars, layers, net_prefix):
@@ -493,7 +496,8 @@ def encode_from_file(path, input_lower_bounds, input_upper_bounds, mode='normal'
     return encodeNN(layers, input_lower_bounds, input_upper_bounds, '', mode)
 
 
-def encode_equivalence_from_file(path1, path2, input_lower_bounds, input_upper_bounds, mode='normal'):
+def encode_equivalence_from_file(path1, path2, input_lower_bounds, input_upper_bounds, compared='outputs',
+                       comparator='diff_zero'):
     kl1 = KerasLoader()
     kl1.load(path1)
     layers1 = kl1.getHiddenLayers()
@@ -502,7 +506,7 @@ def encode_equivalence_from_file(path1, path2, input_lower_bounds, input_upper_b
     kl2.load(path2)
     layers2 = kl2.getHiddenLayers()
 
-    return encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds, mode)
+    return encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds, compared, comparator)
 
 
 
