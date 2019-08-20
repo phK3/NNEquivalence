@@ -335,7 +335,7 @@ def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
         v_constraints = []
 
         delta_gt = Variable(layer, row, net, 'dg', 'Int')
-        delta_lt = Variable(layer, row, net, 'dl', 'Int')
+        delta_lt = Variable(layer + 1, row, net, 'dl', 'Int')
 
         if epsilon > 0:
             eps = Constant(epsilon, net, layer + 1, row)
