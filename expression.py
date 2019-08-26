@@ -329,6 +329,7 @@ class Relu(Expression):
         net, layer, row = output.getIndex()
         super(Relu, self).__init__(net, layer, row)
         self.output = output
+        self.output.setLo(0)
         self.input = input
         self.lo = 0
         self.hi = default_bound
