@@ -425,6 +425,23 @@ def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
 
         constraints = mat_constrs + order_constrs
         diffs = res_vars + ordered2
+    elif mode.startswith('optimize_ranking_top_'):
+        k = int(mode.split('_')[-1])
+
+        matrix = outs1
+        ordered2 = [Variable(0, i, 'E', 'o') for i in range(len(outs2))]
+
+        res_vars, mat_constrs = encode_binmult_matrix(outs2, 0, 'E', matrix, ordered2)
+
+        order_constrs = []
+        diffs = []
+        for i in range(k, len(outs2)):
+            diff_i = Variable(0, i, 'E', 'diff')
+            diffs.append(diff_i)
+            order_constrs.append(Linear(Sum([ordered2[i], Neg(ordered2[0])]), diff_i))
+
+        constraints = mat_constrs + order_constrs
+        deltas = res_vars + ordered2
     else:
         raise ValueError('There is no \'' + mode + '\' keyword for parameter mode')
 
@@ -446,6 +463,9 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
         ranking_one_hot - compares one-hot vectors of NN1 and NN2 generated from a permutation matrix
         one_ranking_top_k - calculates one permutation matrix on outputs of NN1 and checks, for sortedness between
                             top k outputs of NN2 and the rest of the outputs
+        optimize_ranking_top_k - calculates one permutation matrix on outputs of NN1 and checks for sortedness between
+                            top k outputs of NN2 and rest of outputs by computing the difference between o_1' and the non
+                            o_k+1'... outputs, needs manual optimization function
     :param comparator: keyword for how the selected elements should be compared.
         diff_zero    - elements should be equal
         epsilon_e   - elements of output vector of NN2 should not differ by more than epsilon from the
@@ -455,6 +475,9 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
         ranking      - ???
         one_ranking_top_k - calculates one permutation matrix on outputs of NN1 and checks, for sortedness between
                             top k outputs of NN2 and the rest of the outputs
+        optimize_ranking_top_k - calculates one permutation matrix on outputs of NN1 and checks for sortedness between
+                            top k outputs of NN2 and rest of outputs by computing the difference between o_1' and the non
+                            o_k+1'... outputs, needs manual optimization function
     :return: encoding of the equivalence of NN1 and NN2 as a set of variables and
         mixed integer linear programming constraints
     '''
@@ -480,7 +503,7 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
         ranking_layer = ('ranking', num_outs1, None)
         layers1.append(ranking_layer)
         layers2.append(ranking_layer)
-    elif compared.startswith('one_ranking_top_'):
+    elif compared.startswith('one_ranking_top_') or compared.startswith('optimize_ranking_top_'):
         _, num_outs1, _ = layers1[-1]
         _, num_outs2, _ = layers2[-1]
 
@@ -514,7 +537,7 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
         matrix2 = net2_vars[-1]
         outs1 = matrix1[0]
         outs2 = matrix2[0:k]
-    elif compared.startswith('one_ranking_top_'):
+    elif compared.startswith('one_ranking_top_') or compared.startswith('optimize_ranking_top_'):
         k = int(compared.split('_')[-1])
 
         matrix1 = net1_vars[-1]
@@ -553,8 +576,6 @@ def encode_equivalence_from_file(path1, path2, input_lower_bounds, input_upper_b
     layers2 = kl2.getHiddenLayers()
 
     return encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds, compared, comparator)
-
-
 
 
 def interval_arithmetic(constraints):
@@ -625,3 +646,18 @@ def create_gurobi_model(vars, constraints, name='NN_model'):
 
     return model
 
+
+def encode_optimize_equivalence(path1, path2, input_lower_bounds, input_upper_bounds, target_output, interval=True,
+                                compared='optimize_ranking_top_3', comparator='optimize_ranking_top_3'):
+    vars, constraints = encode_equivalence_from_file(path1, path2, input_lower_bounds, input_upper_bounds, compared,
+                                                 comparator)
+
+    if interval:
+        interval_arithmetic(constraints)
+
+    # assumes unique var E_diff_0_i for differences
+    model = create_gurobi_model(vars, constraints)
+    diff = model.getVarByName('E_diff_0_{i}'.format(i=target_output))
+    model.setObjective(diff, grb.GRB.MAXIMIZE)
+
+    return model, vars, constraints
