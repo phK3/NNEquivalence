@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from expression import Expression, Variable
 from keras_loader import KerasLoader
 from expression_encoding import encode_equivalence, interval_arithmetic, hasLinear, encode_linear_layer, \
-    encode_relu_layer, encode_one_hot, encode_ranking_layer, encode_equivalence_layer
+    encode_relu_layer, encode_one_hot, encode_ranking_layer, encode_equivalence_layer, create_gurobi_model
 import gurobipy as grb
 
 
@@ -99,6 +99,11 @@ class Encoder:
         self.b_layers = []
         self.input_layer = None
         self.equivalence_layer = None
+
+        self.opt_timeout = 20
+
+    def set_opt_timeout(self, new_val):
+        self.opt_timeout = new_val
 
     def encode_inputs(self, lower_bounds, upper_bounds, netPrefix=''):
         vars = []
@@ -307,3 +312,45 @@ class Encoder:
         layers2 = kl2.getHiddenLayers()
 
         self.encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds, compared, comparator)
+
+    def optimize_variable(self, var, opt_vars, opt_constraints):
+        model_ub = create_gurobi_model(opt_vars, opt_constraints,
+                                       name='{vname} upper bound optimization'.format(vname=str(var)))
+        model_ub.setObjective(var.to_gurobi(model_ub), grb.GRB.MAXIMIZE)
+
+        model_lb = create_gurobi_model(opt_vars, opt_constraints,
+                                       name='{vname} lower bound optimization'.format(vname=str(var)))
+        model_lb.setObjective(var.to_gurobi(model_lb), grb.GRB.MINIMIZE)
+
+        model_ub.setParam('TimeLimit', self.opt_timeout)
+        model_lb.setParam('TimeLimit', self.opt_timeout)
+        model_ub.optimize()
+        model_lb.optimize()
+
+        ub = model_ub.ObjBound
+        lb = model_lb.ObjBound
+
+        return lb, ub
+
+    def optimize_layer(self, net, layer_idx):
+        if layer_idx < 1:
+            # for first layer we can't get better than interval arithmetic
+            return
+
+        if layer_idx == 1:
+            opt_layers = []
+            opt_layers.append(self.input_layer)
+            opt_layers.append(net[layer_idx - 1])
+        else:
+            opt_layers = net[layer_idx - 2:layer_idx]
+
+        opt_vars = opt_layers[0].get_outvars()
+        opt_vars += opt_layers[1].get_all_vars()
+
+        opt_constraints = opt_layers[1].get_constraints()
+
+        for i, (var, constr) in enumerate(
+                zip(net[layer_idx].get_optimization_vars(), net[layer_idx].get_optimization_constraints())):
+            lb, ub = self.optimize_variable(var, opt_vars + [var], opt_constraints + [constr])
+            var.update_bounds(lb, ub)
+
