@@ -192,17 +192,16 @@ def encode_ranking_layer(prev_neurons, layerIndex, netPrefix):
     return permute_matrix, (res_vars + outs), constraints
 
 
+def hasLinear(activation):
+    if activation == 'one_hot':
+        return False
+    elif activation == 'relu':
+        return True
+    elif activation == 'linear':
+        return True
+
+
 def encode_layers(input_vars, layers, net_prefix):
-
-    def hasLinear(activation):
-        if activation == 'one_hot':
-            return False
-        elif activation == 'relu':
-            return True
-        elif activation == 'linear':
-            return True
-
-
     vars = []
     constraints = []
 
@@ -657,7 +656,7 @@ def encode_optimize_equivalence(path1, path2, input_lower_bounds, input_upper_bo
 
     # assumes unique var E_diff_0_i for differences
     model = create_gurobi_model(vars, constraints)
-    diff = model.getVarByName('E_diff_0_{i}'.format(i=target_output))
+    diff = model.getVarByName('E_diff_0_{index}'.format(index=target_output))
     model.setObjective(diff, grb.GRB.MAXIMIZE)
 
     return model, vars, constraints
