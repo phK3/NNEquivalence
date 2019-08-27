@@ -33,7 +33,7 @@ class Layer(ABC):
         return self.outvars[row]
 
     def get_all_vars(self):
-        return self.invars + self.intervars + self.outvars
+        return self.intervars + self.outvars
 
     def get_constraints(self):
         return self.constraints
@@ -82,6 +82,9 @@ class ReLULayer(Layer):
         self.lin_layer = lin_layer
         self.intervars = self.lin_layer.intervars + self.lin_layer.outvars + intervars
 
+    def get_constraints(self):
+        return self.lin_layer.get_constraints() + self.constraints
+
     def get_optimization_vars(self):
         return self.lin_layer.get_optimization_vars()
 
@@ -126,7 +129,7 @@ class Encoder:
                 vars.append(linvars)
                 constraints.append(eqs)
 
-                lin_layer = Layer('linear', num_neurons, invars, [], linvars, eqs)
+                lin_layer = DefaultLayer('linear', num_neurons, invars, [], linvars, eqs)
 
                 if activation == 'relu':
                     reluouts, reludeltas, reluineqs = encode_relu_layer(linvars, i, net_prefix)
@@ -163,10 +166,11 @@ class Encoder:
 
                     # !!! not sure, what to take for output of ranking layer !!!
                     descriptor, k = output_mode
+
                     l = None
                     if descriptor == 'matrix' and k == -1:
                         l = DefaultLayer('ranking', num_neurons, invars, rank_vars, rank_perms, rank_constraints)
-                    if descriptor == 'matrix' and k >= 0:
+                    elif descriptor == 'matrix' and k >= 0:
                         l = DefaultLayer('ranking', num_neurons, invars, rank_vars + rank_perms[k:],
                                          rank_perms[:k], rank_constraints)
                     elif descriptor == 'out':
