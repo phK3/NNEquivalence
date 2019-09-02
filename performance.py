@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from expression import Expression, Variable
 from keras_loader import KerasLoader
 from expression_encoding import encode_equivalence, interval_arithmetic, hasLinear, encode_linear_layer, \
-    encode_relu_layer, encode_one_hot, encode_ranking_layer, encode_equivalence_layer, create_gurobi_model
+    encode_relu_layer, encode_one_hot, encode_ranking_layer, encode_equivalence_layer, create_gurobi_model, pretty_print
 import gurobipy as grb
 
 
@@ -344,8 +344,8 @@ class Encoder:
         else:
             opt_layers = net[layer_idx - 2:layer_idx]
 
-        opt_vars = opt_layers[0].get_outvars()
-        opt_vars += opt_layers[1].get_all_vars()
+        opt_vars = opt_layers[0].get_outvars()[:]
+        opt_vars += opt_layers[1].get_all_vars()[:]
 
         opt_constraints = opt_layers[1].get_constraints()
 
