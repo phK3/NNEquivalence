@@ -192,6 +192,45 @@ def encode_ranking_layer(prev_neurons, layerIndex, netPrefix):
     return permute_matrix, (res_vars + outs), constraints
 
 
+def encode_partial_layer(top_k, prev_neurons, layerIndex, netPrefix):
+    order_constrs = []
+
+    n = len(prev_neurons)
+    outs = [Variable(layerIndex, i, netPrefix, 'o') for i in range(top_k)]
+    # !!! careful, because NN rows and columns in index are swapped
+    # p_ij in matrix, but p_j_i in printed output
+    # but for calculation permute matrix is stored as array of rows (as in math)
+    partial_matrix = [[Variable(j, i, netPrefix, 'pi', type='Int') for j in range(n)] for i in range(top_k)]
+
+    # perm_matrix * prev_neurons = outs
+    res_vars, permute_constrs = encode_binmult_matrix(prev_neurons, layerIndex, netPrefix, partial_matrix, outs)
+
+    # almost doubly stochastic
+    one = Constant(1, netPrefix, layerIndex, 0)
+    for i in range(top_k):
+        # row stochastic
+        permute_constrs.append(Linear(Sum(partial_matrix[i]), one))
+
+    set_vars = []
+    for j in range(len(prev_neurons)):
+        # almost column stochastic (<= 1)
+        s = Variable(layerIndex, j, netPrefix, 'set', type='Int')
+        set_vars.append(s)
+        permute_constrs.append(Linear(Sum([p[j] for p in partial_matrix]), s))
+        permute_constrs.append(Geq(one, s))
+
+    # o_i >= o_i+1 (for top_k)
+    for o, o_next in zip(outs, outs[1:]):
+        order_constrs.append(Geq(o, o_next))
+
+    # x_i <= o_k-1 for all i, that are not inside top_k
+    for i, s in enumerate(set_vars):
+        order_constrs.append(Impl(s, 0, prev_neurons[i], outs[-1]))
+
+    constraints = permute_constrs + order_constrs
+    return [partial_matrix, set_vars], (res_vars + outs), constraints
+
+
 def hasLinear(activation):
     if activation == 'one_hot':
         return False
@@ -242,6 +281,14 @@ def encode_layers(input_vars, layers, net_prefix):
 
                 invars = rank_perms
 
+            if activation.startswith('partial_'):
+                top_k = int(activation.split('_')[-1])
+                vectors, rank_vars, rank_constraints = encode_partial_layer(top_k, invars, i, net_prefix)
+                vars.append(rank_vars)
+                # vectors is [partial_matrix (k rows, invers cols), set-vector (1 <-> s_i not amongst top k)]
+                vars.append(vectors)
+                constraints.append(rank_constraints)
+
     return vars, constraints
 
 
@@ -255,6 +302,10 @@ def encodeNN(layers, input_lower_bounds, input_upper_bounds, net_prefix, mode='n
         _, num_outs, _ = layers[-1]
         ranking_layer = ('ranking', num_outs, None)
         layers.append(ranking_layer)
+    elif mode.startswith('partial_'):
+        _, num_outs, _ = layers[-1]
+        partial_layer = (mode, num_outs, None)
+        layers.append(partial_layer)
 
     invars = encode_inputs(input_lower_bounds, input_upper_bounds)
 
