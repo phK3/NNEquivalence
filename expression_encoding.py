@@ -143,7 +143,7 @@ def encode_binmult_matrix(prev_neurons, layerIndex, netPrefix, matrix, outs):
     lin_constrs = []
     permute_constrs = []
 
-    for i in range(len(prev_neurons)):
+    for i in range(len(outs)):
         res_vars_i = []
         for j, neuron in enumerate(prev_neurons):
             y = Variable(j, i, netPrefix, 'y')
