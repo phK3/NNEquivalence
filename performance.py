@@ -266,6 +266,8 @@ class Encoder:
             optimize_ranking_top_k - calculates one permutation matrix on outputs of NN1 and checks for sortedness between
                                 top k outputs of NN2 and rest of outputs by computing the difference between o_1' and the non
                                 o_k+1'... outputs, needs manual optimization function
+            optimize_diff - calculates difference for each element of output of NN1 and NN2, needs manual optimization
+                        function
         :return: encoding of the equivalence of NN1 and NN2 as a set of variables and
             mixed integer linear programming constraints
         '''
