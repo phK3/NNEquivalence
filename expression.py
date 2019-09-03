@@ -806,8 +806,7 @@ class Impl(Expression):
 
         if use_grb_native:
             ret_constr = model.addConstr((self.delta.to_gurobi(model) == self.constant)
-                                         >> (self.lhs.to_gurobi(model) <= self.rhs.to_gurobi(model)),
-                            name=c_name)
+                                         >> (self.lhs.to_gurobi(model) <= self.rhs.to_gurobi(model)), name=c_name)
         else:
             term = Sum([self.lhs, Neg(self.rhs)])
             bigM = term.getHi()

@@ -435,6 +435,12 @@ def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
             constraints += n_constraints
 
         constraints.append(Geq(Sum(deltas), Constant(1, 'E', 1, 0)))
+    elif mode == 'optimize_diff':
+        for i, (out1, out2) in enumerate(zip(outs1, outs2)):
+            diff_i = Variable(0, i, 'E', 'diff')
+            constraints.append(Linear(Sum([out1, Neg(out2)]), diff_i))
+
+            diffs.append(diff_i)
     elif mode == 'diff_one_hot':
         # requires that outs_i are the pi_1_js in of the respective permutation matrices
         # or input to this layer are one-hot vectors
@@ -528,6 +534,11 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
         optimize_ranking_top_k - calculates one permutation matrix on outputs of NN1 and checks for sortedness between
                             top k outputs of NN2 and rest of outputs by computing the difference between o_1' and the non
                             o_k+1'... outputs, needs manual optimization function
+        optimize_partial_top_k - calculates only necessary part of permutation matrix (only k rows) on NN1 and checks for
+                            sortedness between top k outputs of NN2 and rest of the outputs, needs manual optimization
+                            function
+        optimize_diff - calculates difference for each element of output of NN1 and NN2, needs manual optimization
+                        function
     :return: encoding of the equivalence of NN1 and NN2 as a set of variables and
         mixed integer linear programming constraints
     '''
