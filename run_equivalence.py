@@ -1,5 +1,6 @@
 
 from performance import Encoder
+import expression
 from expression_encoding import pretty_print, interval_arithmetic, create_gurobi_model
 import gurobipy as grb
 import sys
@@ -169,7 +170,9 @@ def mnist_eqiv(mode):
     # maximum for diff should be greater 0
     return model
 
-def run_evaluation():
+def run_evaluation(models):
+    expression.use_grb_native = False
+
     stdout = sys.stdout
     models = []
     teststart = timer()
