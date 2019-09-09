@@ -239,7 +239,8 @@ def encode_sort_one_hot_layer(prev_neurons, layerIndex, netPrefix, mode):
     # one_hot_vec and top need to be enclosed in [], so that indexing in binmult_matrix works
     res_vars, mat_constrs = encode_binmult_matrix(prev_neurons, 0, 'E', [one_hot_vec], [top])
 
-    order_constr = Linear(Sum(one_hot_vec), Constant(1, netPrefix, layerIndex, 0))
+    order_constrs = [Geq(top, neuron) for neuron in prev_neurons]
+    order_constrs.append(Linear(Sum(one_hot_vec), Constant(1, netPrefix, layerIndex, 0)))
 
     outs = None
     vars = None
@@ -252,7 +253,7 @@ def encode_sort_one_hot_layer(prev_neurons, layerIndex, netPrefix, mode):
     else:
         raise ValueError('Unknown mode for encoding of sort_one_hot layer: {name}'.format(name=mode))
 
-    return outs, vars, [order_constr] + mat_constrs
+    return outs, vars, order_constrs + mat_constrs
 
 
 def hasLinear(activation):
