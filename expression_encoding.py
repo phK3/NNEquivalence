@@ -321,7 +321,7 @@ def encode_layers(input_vars, layers, net_prefix):
                 mode = activation.split('_')[-1]
                 oh_outs, oh_vars, oh_constraints = encode_sort_one_hot_layer(invars, i, net_prefix, mode)
                 vars.append(oh_vars)
-                vars.append(outs)
+                vars.append(oh_outs)
                 constraints.append(oh_constraints)
 
                 invars = oh_outs
@@ -603,6 +603,19 @@ def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
         deltas = [top] + res_vars + partial_matrix + partial_vars
         diffs = [diff]
         constraints = mat_constrs + partial_constrs + [diff_constr]
+    elif mode == 'one_hot_diff':
+        # assumes outs1 = one hot vector of NN1
+        # assumes outs2 = output of NN2
+        one_hot_vec = outs1
+        top = Variable(0, 0, 'E', 'top')
+        # one_hot_vec and top need to be enclosed in [], so that indexing in binmult_matrix works
+        res_vars, mat_constrs = encode_binmult_matrix(outs2, 0, 'E', [one_hot_vec], [top])
+
+        diffs = [Variable(0, i, 'E', 'diff') for i in range(len(outs2))]
+        diff_constrs = [Linear(Sum([out, Neg(top)]), diff) for out, diff in zip(outs2, diffs)]
+
+        deltas = [top] + res_vars
+        constraints = mat_constrs + diff_constrs
     else:
         raise ValueError('There is no \'' + mode + '\' keyword for parameter mode')
 
@@ -695,7 +708,7 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
         # not sure what to specify as num_neurons (num of sorted outs or num of p_ij in permutation matrix?)
         partial_layer = ('partial_{topk}'.format(topk=k), num_outs1, None)
         layers1.append(partial_layer)
-    elif compared.startswith('one_hot_partial_top_'):
+    elif compared.startswith('one_hot_partial_top_') or compared == 'one_hot_diff':
         _, num_outs1, _ = layers1[-1]
         _, num_outs2, _ = layers2[-1]
 
@@ -715,7 +728,7 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
     # should never be used
     outs1 = net1_vars[-1]
     outs2 = net2_vars[-1]
-    if compared in {'outputs', 'one_hot'} or compared.startswith('one_hot_partial_top_'):
+    if compared in {'outputs', 'one_hot', 'one_hot_diff'} or compared.startswith('one_hot_partial_top_'):
         outs1 = net1_vars[-1]
         outs2 = net2_vars[-1]
     elif compared == 'ranking_one_hot':

@@ -138,6 +138,14 @@ def testOneHotPartialEquivalence():
     return encode_equivalence(layers[:], layers[:], inputs, inputs, 'one_hot_partial_top_2', 'one_hot_partial_top_2')
 
 
+def testOneHotDiffEquivalence():
+    inputs = [3, 5, 7]
+    weights = [[0, 1, 0], [0, 0, 1], [1, 0, 0], [0, 0, 0]]
+    layers = [('relu', 3, weights)]
+
+    return encode_equivalence(layers[:], layers[:], inputs, inputs, 'one_hot_diff', 'one_hot_diff')
+
+
 def encodeEquivalenceWithModes(desired='equivalent', compared='ranking_one_hot', comparator='diff_one_hot'):
     '''
 

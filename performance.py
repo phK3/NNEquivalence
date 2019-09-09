@@ -236,7 +236,7 @@ class Encoder:
             # not sure what to specify as num_neurons (num of sorted outs or num of p_ij in permutation matrix?)
             partial_layer = ('partial_{topk}'.format(topk=k), num_outs1, None)
             layers1.append(partial_layer)
-        elif compared.startswith('one_hot_partial_top_'):
+        elif compared.startswith('one_hot_partial_top_') or compared == 'one_hot_diff':
             one_hot_layer = ('sort_one_hot_vector', num_outs1, None)
             layers1.append(one_hot_layer)
         else:
@@ -248,7 +248,7 @@ class Encoder:
         # should never be used
         mode1 = ('', -1)
         mode2 = ('', -1)
-        if compared in {'outputs', 'one_hot'} or compared.startswith('one_hot_partial_top_'):
+        if compared in {'outputs', 'one_hot', 'one_hot_diff'} or compared.startswith('one_hot_partial_top_'):
             mode1 = ('', -1)
             mode2 = ('', -1)
         elif compared == 'ranking_one_hot':
