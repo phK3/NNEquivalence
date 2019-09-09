@@ -1,6 +1,6 @@
 
 from expression import Variable, Linear, Relu, Max, Multiplication, Constant, Sum, Neg, One_hot, Greater_Zero, \
-    Geq, BinMult, Gt_Int, Impl
+    Geq, BinMult, Gt_Int, Impl, IndicatorToggle
 from keras_loader import KerasLoader
 import gurobipy as grb
 import datetime
@@ -231,6 +231,30 @@ def encode_partial_layer(top_k, prev_neurons, layerIndex, netPrefix):
     return [partial_matrix, set_vars], (res_vars + outs), constraints
 
 
+def encode_sort_one_hot_layer(prev_neurons, layerIndex, netPrefix, mode):
+    n = len(prev_neurons)
+    one_hot_vec = [Variable(layerIndex, i, netPrefix, 'o', type='Int') for i in range(n)]
+
+    top = Variable(layerIndex, 0, netPrefix, 'top')
+    # one_hot_vec and top need to be enclosed in [], so that indexing in binmult_matrix works
+    res_vars, mat_constrs = encode_binmult_matrix(prev_neurons, 0, 'E', [one_hot_vec], [top])
+
+    order_constr = Linear(Sum(one_hot_vec), Constant(1, netPrefix, layerIndex, 0))
+
+    outs = None
+    vars = None
+    if mode == 'vector':
+        outs = one_hot_vec
+        vars = res_vars + [top]
+    elif mode == 'out':
+        outs = [top]
+        vars = res_vars + one_hot_vec
+    else:
+        raise ValueError('Unknown mode for encoding of sort_one_hot layer: {name}'.format(name=mode))
+
+    return outs, vars, [order_constr] + mat_constrs
+
+
 def hasLinear(activation):
     if activation == 'one_hot':
         return False
@@ -289,6 +313,14 @@ def encode_layers(input_vars, layers, net_prefix):
                 vars.append(vectors)
                 constraints.append(rank_constraints)
 
+            if activation.startswith('sort_one_hot_'):
+                #modes 'vector' and 'out' are allowed and define what is returned as out
+                mode = activation.split('_')[-1]
+                outs, oh_vars, oh_constraints = encode_sort_one_hot_layer(invars, i, net_prefix, mode)
+                vars.append(oh_vars)
+                vars.append(outs)
+                constraints.append(oh_constraints)
+
     return vars, constraints
 
 
@@ -306,6 +338,12 @@ def encodeNN(layers, input_lower_bounds, input_upper_bounds, net_prefix, mode='n
         _, num_outs, _ = layers[-1]
         partial_layer = (mode, num_outs, None)
         layers.append(partial_layer)
+    elif mode.startswith('sort_one_hot_'):
+        _, num_outs, _ = layers[-1]
+        oh_layer = (mode, num_outs, None)
+        layers.append(oh_layer)
+    else:
+        raise ValueError('Invalid mode for NN encoding: {name}'.format(name=mode))
 
     invars = encode_inputs(input_lower_bounds, input_upper_bounds)
 
