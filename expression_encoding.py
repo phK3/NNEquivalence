@@ -237,10 +237,10 @@ def encode_sort_one_hot_layer(prev_neurons, layerIndex, netPrefix, mode):
 
     top = Variable(layerIndex, 0, netPrefix, 'top')
     # one_hot_vec and top need to be enclosed in [], so that indexing in binmult_matrix works
-    res_vars, mat_constrs = encode_binmult_matrix(prev_neurons, 0, 'E', [one_hot_vec], [top])
+    res_vars, mat_constrs = encode_binmult_matrix(prev_neurons, 0, netPrefix, [one_hot_vec], [top])
 
+    oh_constraint = Linear(Sum(one_hot_vec), Constant(1, netPrefix, layerIndex, 0))
     order_constrs = [Geq(top, neuron) for neuron in prev_neurons]
-    order_constrs.append(Linear(Sum(one_hot_vec), Constant(1, netPrefix, layerIndex, 0)))
 
     outs = None
     vars = None
@@ -253,7 +253,7 @@ def encode_sort_one_hot_layer(prev_neurons, layerIndex, netPrefix, mode):
     else:
         raise ValueError('Unknown mode for encoding of sort_one_hot layer: {name}'.format(name=mode))
 
-    return outs, vars, order_constrs + mat_constrs
+    return outs, vars, [oh_constraint] + mat_constrs + order_constrs
 
 
 def hasLinear(activation):
@@ -537,6 +537,68 @@ def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
 
         constraints = mat_constrs + order_constrs
         deltas = res_vars + ordered2
+    elif mode.startswith('partial_top_'):
+        # assumes outs1 = [partial matrix, set-var] of NN1
+        # assumes outs2 = outputs of NN2
+        partial_matrix = outs1[0]
+        one_hot_vec = partial_matrix[0]
+        set_var = outs1[1]
+
+        top = Variable(0, 0, 'E', 'top')
+        # one_hot_vec and top need to be enclosed in [], so that indexing in binmult_matrix works
+        res_vars, mat_constrs = encode_binmult_matrix(outs2, 0, 'E', [one_hot_vec], [top])
+
+        order_constrs = []
+        for i in range(len(outs2)):
+            order_constrs.append(Impl(set_var[i], 0, Sum([outs2[i], Neg(top)]), Constant(0, 'E', 0, 0)))
+
+        constraints = mat_constrs + order_constrs
+        deltas = res_vars
+        diffs = [top]
+    elif mode.startswith('optimize_partial_top_'):
+        # assumes outs1 = [partial matrix, set-var] of NN1
+        # assumes outs2 = outputs of NN2
+        partial_matrix = outs1[0]
+        one_hot_vec = partial_matrix[0]
+        set_var = outs1[1]
+
+        top = Variable(0, 0, 'E', 'top')
+        # one_hot_vec and top need to be enclosed in [], so that indexing in binmult_matrix works
+        res_vars, mat_constrs = encode_binmult_matrix(outs2, 0, 'E', [one_hot_vec], [top])
+
+        order_constrs = []
+        diffs = [Variable(0, i, 'E', 'diff') for i in range(len(outs2))]
+        order_constrs.append(IndicatorToggle(set_var, 0, [Sum([outs2[i], Neg(top)]) for i in range(len(outs2))], diffs))
+
+        max_diff_vec = [Variable(1, i, 'E', 'pi', 'Int') for i in range(len(diffs))]
+        max_diff = Variable(1, 0, 'E', 'max_diff')
+        res_vars2, mat_constrs2 = encode_binmult_matrix(diffs, 1, 'Emax', [max_diff_vec], [max_diff])
+        for diff in diffs:
+            order_constrs.append(Geq(max_diff, diff))
+
+        diffs.append(max_diff)
+
+        constraints = mat_constrs + order_constrs + mat_constrs2
+        deltas = res_vars + [top] + max_diff_vec + res_vars2
+
+    elif mode.startswith('one_hot_partial_top_'):
+        k = int(mode.split('_')[-1])
+        # assumes outs1 = one hot vector of NN1
+        # assumes outs2 = output of NN2
+        one_hot_vec = outs1
+
+        top = Variable(0, 0, 'E', 'top')
+        # one_hot_vec and top need to be enclosed in [], so that indexing in binmult_matrix works
+        res_vars, mat_constrs = encode_binmult_matrix(outs2, 0, 'E', [one_hot_vec], [top])
+
+        partial_matrix, partial_vars, partial_constrs = encode_partial_layer(k, outs2, 1, 'E')
+
+        diff = Variable(0, k, 'E', 'diff')
+        diff_constr = Linear(Sum([partial_vars[-1], Neg(top)]), diff)
+
+        deltas = [top] + res_vars + partial_matrix + partial_vars
+        diffs = [diff]
+        constraints = mat_constrs + partial_constrs + [diff_constr]
     else:
         raise ValueError('There is no \'' + mode + '\' keyword for parameter mode')
 
@@ -561,6 +623,11 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
         optimize_ranking_top_k - calculates one permutation matrix on outputs of NN1 and checks for sortedness between
                             top k outputs of NN2 and rest of outputs by computing the difference between o_1' and the non
                             o_k+1'... outputs, needs manual optimization function
+        [not implemented yet] partial_top_k - calculates only necessary part of permutation matrix (only k rows) on NN1
+                            and checks for sortedness between top k outputs of NN2 and rest of the outputs
+        optimize_partial_top_k - calculates only necessary part of permutation matrix (only k rows) on NN1 and checks for
+                            sortedness between top k outputs of NN2 and rest of the outputs, needs manual optimization
+                            function
     :param comparator: keyword for how the selected elements should be compared.
         diff_zero    - elements should be equal
         epsilon_e   - elements of output vector of NN2 should not differ by more than epsilon from the
@@ -613,6 +680,29 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
         # not sure what to specify as num_neurons (num of sorted outs or num of p_ij in permutation matrix?)
         ranking_layer = ('ranking', num_outs1, None)
         layers1.append(ranking_layer)
+    elif compared.startswith('partial_top_') or compared.startswith('optimize_partial_top_'):
+        _, num_outs1, _ = layers1[-1]
+        _, num_outs2, _ = layers2[-1]
+
+        if not num_outs1 == num_outs2:
+            raise ValueError("both NNs must have the same number of outputs")
+
+        k = int(compared.split('_')[-1])
+        # not sure what to specify as num_neurons (num of sorted outs or num of p_ij in permutation matrix?)
+        partial_layer = ('partial_{topk}'.format(topk=k), num_outs1, None)
+        layers1.append(partial_layer)
+    elif compared.startswith('one_hot_partial_top_'):
+        _, num_outs1, _ = layers1[-1]
+        _, num_outs2, _ = layers2[-1]
+
+        if not num_outs1 == num_outs2:
+            raise ValueError("both NNs must have the same number of outputs")
+
+        k = int(compared.split('_')[-1])
+        one_hot_layer = ('sort_one_hot_vector', num_outs1, None)
+        layers1.append(one_hot_layer)
+    else:
+        raise ValueError('Invalid parameter \'compared\' for encode_equivalence: {name}'.format(name=compared))
 
 
     invars = encode_inputs(input_lower_bounds, input_upper_bounds)
@@ -637,12 +727,18 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
         matrix2 = net2_vars[-1]
         outs1 = matrix1[0]
         outs2 = matrix2[0:k]
-    elif compared.startswith('one_ranking_top_') or compared.startswith('optimize_ranking_top_'):
+    elif compared.startswith('one_ranking_top_') or compared.startswith('optimize_ranking_top_') \
+            or compared.startswith('optimize_partial_top_') or compared.startswith('partial_top_'):
         k = int(compared.split('_')[-1])
 
         matrix1 = net1_vars[-1]
 
         outs1 = matrix1
+        outs2 = net2_vars[-1]
+    elif compared.startswith('one_hot_partial_top_'):
+        # already one hot vector because started with mode 'vector' for sort_one_hot
+        outs1 = net1_vars[-1]
+        # normal outputs of NN2
         outs2 = net2_vars[-1]
     else:
         # default case
