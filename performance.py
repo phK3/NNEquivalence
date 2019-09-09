@@ -3,7 +3,8 @@ from abc import ABC, abstractmethod
 from expression import Expression, Variable
 from keras_loader import KerasLoader
 from expression_encoding import encode_equivalence, interval_arithmetic, hasLinear, encode_linear_layer, \
-    encode_relu_layer, encode_one_hot, encode_ranking_layer, encode_equivalence_layer, create_gurobi_model, pretty_print
+    encode_relu_layer, encode_one_hot, encode_ranking_layer, encode_equivalence_layer, create_gurobi_model, pretty_print, \
+    encode_partial_layer, encode_sort_one_hot_layer
 import gurobipy as grb
 
 
@@ -187,6 +188,27 @@ class Encoder:
                     net_layers.append(l)
                     invars = rank_perms
 
+                if activation.startswith('partial_'):
+                    top_k = int(activation.split('_')[-1])
+                    vectors, rank_vars, rank_constraints = encode_partial_layer(top_k, invars, i, net_prefix)
+                    vars.append(rank_vars)
+                    # vectors is [partial_matrix (k rows, invers cols), set-vector (1 <-> s_i not amongst top k)]
+                    vars.append(vectors)
+                    constraints.append(rank_constraints)
+
+                    invars = vectors
+
+                if activation.startswith('sort_one_hot_'):
+                    # modes 'vector' and 'out' are allowed and define what is returned as out
+                    mode = activation.split('_')[-1]
+                    oh_outs, oh_vars, oh_constraints = encode_sort_one_hot_layer(invars, i, net_prefix, mode)
+                    vars.append(oh_vars)
+                    vars.append(oh_outs)
+                    constraints.append(oh_constraints)
+                    invars = oh_outs
+
+                    net_layers.append(DefaultLayer('one_hot', num_neurons, invars, oh_vars, oh_outs, oh_constraints))
+
         return net_layers
 
     def append_compare_layer(self, layers1, layers2, compared):
@@ -209,6 +231,16 @@ class Encoder:
             # not sure what to specify as num_neurons (num of sorted outs or num of p_ij in permutation matrix?)
             ranking_layer = ('ranking', num_outs1, None)
             layers1.append(ranking_layer)
+        elif compared.startswith('partial_top_') or compared.startswith('optimize_partial_top_'):
+            k = int(compared.split('_')[-1])
+            # not sure what to specify as num_neurons (num of sorted outs or num of p_ij in permutation matrix?)
+            partial_layer = ('partial_{topk}'.format(topk=k), num_outs1, None)
+            layers1.append(partial_layer)
+        elif compared.startswith('one_hot_partial_top_'):
+            one_hot_layer = ('sort_one_hot_vector', num_outs1, None)
+            layers1.append(one_hot_layer)
+        else:
+            raise ValueError('Invalid parameter \'compared\' for encode_equivalence: {name}'.format(name=compared))
 
         return layers1, layers2
 
@@ -216,7 +248,7 @@ class Encoder:
         # should never be used
         mode1 = ('', -1)
         mode2 = ('', -1)
-        if compared in {'outputs', 'one_hot'}:
+        if compared in {'outputs', 'one_hot'} or compared.startswith('one_hot_partial_top_'):
             mode1 = ('', -1)
             mode2 = ('', -1)
         elif compared == 'ranking_one_hot':
@@ -227,7 +259,8 @@ class Encoder:
             k = int(compared.split('_')[-1])
             mode1 = ('matrix', 1)
             mode2 = ('matrix', k)
-        elif compared.startswith('one_ranking_top_') or compared.startswith('optimize_ranking_top_'):
+        elif compared.startswith('one_ranking_top_') or compared.startswith('optimize_ranking_top_') \
+                or compared.startswith('optimize_partial_top_') or compared.startswith('partial_top_'):
             mode1 = ('matrix', -1)
             mode2 = ('', -1)
         else:

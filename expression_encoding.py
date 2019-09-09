@@ -314,13 +314,17 @@ def encode_layers(input_vars, layers, net_prefix):
                 vars.append(vectors)
                 constraints.append(rank_constraints)
 
+                invars = vectors
+
             if activation.startswith('sort_one_hot_'):
                 #modes 'vector' and 'out' are allowed and define what is returned as out
                 mode = activation.split('_')[-1]
-                outs, oh_vars, oh_constraints = encode_sort_one_hot_layer(invars, i, net_prefix, mode)
+                oh_outs, oh_vars, oh_constraints = encode_sort_one_hot_layer(invars, i, net_prefix, mode)
                 vars.append(oh_vars)
                 vars.append(outs)
                 constraints.append(oh_constraints)
+
+                invars = oh_outs
 
     return vars, constraints
 
@@ -698,7 +702,6 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
         if not num_outs1 == num_outs2:
             raise ValueError("both NNs must have the same number of outputs")
 
-        k = int(compared.split('_')[-1])
         one_hot_layer = ('sort_one_hot_vector', num_outs1, None)
         layers1.append(one_hot_layer)
     else:
@@ -712,7 +715,7 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
     # should never be used
     outs1 = net1_vars[-1]
     outs2 = net2_vars[-1]
-    if compared in {'outputs', 'one_hot'}:
+    if compared in {'outputs', 'one_hot'} or compared.startswith('one_hot_partial_top_'):
         outs1 = net1_vars[-1]
         outs2 = net2_vars[-1]
     elif compared == 'ranking_one_hot':
@@ -734,11 +737,6 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
         matrix1 = net1_vars[-1]
 
         outs1 = matrix1
-        outs2 = net2_vars[-1]
-    elif compared.startswith('one_hot_partial_top_'):
-        # already one hot vector because started with mode 'vector' for sort_one_hot
-        outs1 = net1_vars[-1]
-        # normal outputs of NN2
         outs2 = net2_vars[-1]
     else:
         # default case
