@@ -214,6 +214,9 @@ def evaluate_branching(limit_minutes):
     start = timer()
     model = mnist_eqiv('optimize_ranking_top_3')
 
+    model.setParam('MIPFocus', 3)
+    model.update()
+
     model.setParam('TimeLimit', limit_minutes * 60)
 
     model.optimize()
