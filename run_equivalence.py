@@ -161,7 +161,11 @@ def mnist_eqiv(mode):
         enc.optimize_layer(enc.b_layers, i)
         interval_arithmetic(enc.get_constraints())
 
-    k = int(mode.split('_')[-1])
+    if mode == 'one_hot_diff':
+        k = 0
+    else:
+        k = int(mode.split('_')[-1])
+
     model = create_gurobi_model(enc.get_vars(), enc.get_constraints(), 'mnist_lin_' + mode)
     diff = model.getVarByName('E_diff_0_{num}'.format(num=k))
     model.setObjective(diff, grb.GRB.MAXIMIZE)
@@ -170,13 +174,89 @@ def mnist_eqiv(mode):
     # maximum for diff should be greater 0
     return model
 
-def run_evaluation(models):
+
+def all_combinations(base, digits, c_num):
+    if c_num >= base ** digits:
+        raise ValueError('Insufficient number of combinations')
+
+    array = []
+    for i in range(digits):
+        mod = c_num % base
+        array.insert(0, mod)
+        c_num = (c_num - mod) // base
+
+    return array
+
+
+def set_branch_priorities(model, s, delta, pi):
+    for v in model.getVars():
+        if 's' in v.varName:
+            v.setAttr('BranchPriority', s)
+        elif 'pi' in v.varName:
+            v.setAttr('BranchPriority', pi)
+        elif 'd' in v.varName and 'diff' not in v.varName:
+            v.setAttr('BranchPriority', delta)
+        else:
+            v.setAttr('BranchPriority', 0)
+
+    model.update()
+
+
+def evaluate_branching(limit_minutes):
     expression.use_grb_native = False
 
     stdout = sys.stdout
     models = []
     teststart = timer()
 
+    # test MIPFocus = 3
+    sys.stdout = open('Evaluation/mnist_eqiv_branch_MIPFocus3.txt', 'w')
+    start = timer()
+    model = mnist_eqiv('optimize_ranking_top_3')
+
+    model.setParam('TimeLimit', limit_minutes * 60)
+
+    model.optimize()
+    end = timer()
+    models.append(model)
+    print('### Total Time elapsed: {t}'.format(t=end - start))
+
+    sys.stdout = stdout
+    now = timer()
+    print('mnist_eqiv_branch_MIPFocus3 evaluated, time={t}'.format(t=now - teststart))
+
+    for combination in range(0, 27):
+        priorities = all_combinations(3, 3, combination)
+        s = priorities[0]
+        delta = priorities[1]
+        pi = priorities[2]
+
+        sys.stdout = open('Evaluation/mnist_eqiv_branch_s={set}_delta={d}_pi={p}.txt'.format(set=s, d=delta, p=pi), 'w')
+        start = timer()
+        model = mnist_eqiv('optimize_ranking_top_3')
+
+        set_branch_priorities(model, s, delta, pi)
+        model.setParam('TimeLimit', limit_minutes * 60)
+
+        model.optimize()
+        end = timer()
+        models.append(model)
+        print('### Total Time elapsed: {t}'.format(t=end - start))
+
+        sys.stdout = stdout
+        now = timer()
+        print('mnist_eqiv_branch_s={set}_delta={d}_pi={p} evaluated, time={t}'.format(set=s, d=delta, p=pi,t=now - teststart))
+
+    return models
+
+def run_evaluation():
+    expression.use_grb_native = False
+
+    stdout = sys.stdout
+    models = []
+    teststart = timer()
+
+    '''
     sys.stdout = open('Evaluation/balance_scale_eqiv_top1.txt', 'w')
     start = timer()
     model1, model2 = balance_scale_eqiv_top_1()
@@ -264,6 +344,46 @@ def run_evaluation(models):
         sys.stdout = stdout
         now = timer()
         print('mnist_not_eqiv_ranking_top_{num} evaluated, time={t}'.format(t=now - teststart, num=k))
+    '''
+
+    sys.stdout = open('Evaluation/mnist_eqiv_one_hot_diff.txt', 'w')
+    start = timer()
+    model = mnist_eqiv('one_hot_diff')
+    model.optimize()
+    end = timer()
+    models.append(model)
+    print('### Total Time elapsed: {t}'.format(t=end - start))
+
+    sys.stdout = stdout
+    now = timer()
+    print('mnist_eqiv_one_hot_diff evaluated, time={t}'.format(t=now - teststart))
+
+    for k in range(1, 4):
+        sys.stdout = open('Evaluation/mnist_not_eqiv_one_hot_partial_top_{num}.txt'.format(num=k), 'w')
+        start = timer()
+        model = mnist_not_eqiv('one_hot_partial_top_{num}'.format(num=k))
+        model.optimize()
+        end = timer()
+        models.append(model)
+        print('### Total Time elapsed: {t}'.format(t=end - start))
+
+        sys.stdout = stdout
+        now = timer()
+        print('mnist_not_eqiv_one_hot_partial_top_{num} evaluated, time={t}'.format(t=now - teststart, num=k))
+
+    for k in range(1, 4):
+        sys.stdout = open('Evaluation/mnist_eqiv_one_hot_partial_top_{num}.txt'.format(num=k), 'w')
+        start = timer()
+        model = mnist_eqiv('one_hot_partial_top_{num}'.format(num=k))
+        model.optimize()
+        end = timer()
+        models.append(model)
+        print('### Total Time elapsed: {t}'.format(t=end - start))
+
+        sys.stdout = stdout
+        now = timer()
+        print('mnist_eqiv_one_hot_partial_top_{num} evaluated, time={t}'.format(t=now - teststart, num=k))
+
 
     models[-1].setParam('TimeLimit', 300 * 60)
     models[-1].optimize()

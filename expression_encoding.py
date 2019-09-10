@@ -233,7 +233,7 @@ def encode_partial_layer(top_k, prev_neurons, layerIndex, netPrefix):
 
 def encode_sort_one_hot_layer(prev_neurons, layerIndex, netPrefix, mode):
     n = len(prev_neurons)
-    one_hot_vec = [Variable(layerIndex, i, netPrefix, 'o', type='Int') for i in range(n)]
+    one_hot_vec = [Variable(layerIndex, i, netPrefix, 'pi', type='Int') for i in range(n)]
 
     top = Variable(layerIndex, 0, netPrefix, 'top')
     # one_hot_vec and top need to be enclosed in [], so that indexing in binmult_matrix works
