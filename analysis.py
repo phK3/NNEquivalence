@@ -3,6 +3,8 @@ from expression_encoding import flatten
 import gurobipy as grb
 import itertools as itt
 import texttable as tt
+import pandas as pd
+import re
 
 
 def print_table(vars, model):
@@ -46,3 +48,69 @@ def print_table(vars, model):
     s = tab.draw()
     print(s)
 
+
+def separate_logs(logfile):
+    logs = []
+    current_log = ''
+    with open(logfile) as f:
+        for line in f.readlines():
+            current_log += line
+
+            # new optimization
+            if line.startswith('Optimize'):
+                logs.append(current_log)
+                current_log = line
+
+    logs.append(current_log)
+    return logs
+
+
+def get_table(logstring):
+    # 11 columns:
+    # SolFound Expl Unexpl Obj Depth IntInf Incumbent BestBd Gap It/Node Time
+    table = pd.DataFrame(columns=['SolFound', 'Expl', 'Unexpl', 'Obj', 'Depth', 'IntInf',
+                                  'Incumbent', 'BestBd', 'Gap', 'It/Node', 'Time'])
+
+    num_start = False
+    num_end = False
+    for line in logstring.splitlines():
+        tabline = re.sub(r'\ (\ )*', ';', line)
+        if tabline.startswith(';0'):
+            num_start = True
+
+        if tabline.startswith('H') and num_start and not num_end:
+            if not tabline[1:].startswith(';'):
+                tabline = tabline[0] + ';' + tabline[1:]
+
+            # should be 8 columns (Obj, InfInf, Depth missing)
+            columns = tabline.split(';')
+            columns.insert(3, '')  # empty Obj column
+            columns.insert(4, '')  # empty Depth column
+            columns.insert(5, '')  # empty InfInf column
+            tabline = ';'.join(columns)
+        elif tabline.startswith('*') and num_start and not num_end:
+            if not tabline[1:].startswith(';'):
+                tabline = tabline[0] + ';' + tabline[1:]
+
+            # should be 9 columns (Obj, IntInf missing)
+            columns = tabline.split(';')
+            columns.insert(3, '')  # empty Obj column
+            columns.insert(5, '')  # empty InfInf column
+            tabline = ';'.join(columns)
+        elif ('cutoff' in tabline or 'infeasible' in tabline) and num_start and not num_end:
+            # for cutoff/infeas obj is cutoff/infeas instead of number
+            columns = tabline.split(';')
+            columns[3] = ''  # empty Obj column
+            columns.insert(5, '')  # empty InfInf column
+            tabline = ';'.join(columns)
+
+        if len(tabline.split(';')) < 11 and num_start:
+            return table
+
+        if num_start and not num_end:
+            #print(tabline + ' ### start={s}'.format(s=num_start))
+            columns = tabline.split(';')
+            columns[-1] = columns[-1][:-1]  # remove second's s
+            table = table.append(pd.Series(columns, index=table.columns), ignore_index=True)
+
+    return table
