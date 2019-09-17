@@ -65,39 +65,69 @@ def separate_logs(logfile):
     return logs
 
 
-def get_table(logstring):
+def get_table(logstring, res_name=''):
     # 11 columns:
     # SolFound Expl Unexpl Obj Depth IntInf Incumbent BestBd Gap It/Node Time
     table = pd.DataFrame(columns=['SolFound', 'Expl', 'Unexpl', 'Obj', 'Depth', 'IntInf',
                                   'Incumbent', 'BestBd', 'Gap', 'It/Node', 'Time'])
 
+    if not res_name == '':
+        table.name = res_name
+
+    def fill_row_dict(columns):
+        int_idxs = [0,1,2,4,5,10]
+        float_idxs = [3,6,7,8,9]
+
+        columns[-1] = columns[-1][:-1]  # remove second's s
+
+        if columns[0] == '':
+            filled = [0]
+        else:
+            filled = [columns[0]]
+
+        for i, e in enumerate(columns[1:]):
+            real_idx = i+1
+            if real_idx in int_idxs:
+                if e == '':
+                    filled.append(0)
+                else:
+                    filled.append(int(e))
+            else:
+                if e in ['-', '']:
+                    filled.append(float('nan'))
+                else:
+                    filled.append(float(e))
+
+        return filled
+
     num_start = False
-    num_end = False
     for line in logstring.splitlines():
         tabline = re.sub(r'\ (\ )*', ';', line)
         if tabline.startswith(';0'):
             num_start = True
 
-        if tabline.startswith('H') and num_start and not num_end:
+        if tabline.startswith('H') and num_start:
             if not tabline[1:].startswith(';'):
                 tabline = tabline[0] + ';' + tabline[1:]
 
             # should be 8 columns (Obj, InfInf, Depth missing)
             columns = tabline.split(';')
+            columns[0] = '1'
             columns.insert(3, '')  # empty Obj column
             columns.insert(4, '')  # empty Depth column
             columns.insert(5, '')  # empty InfInf column
             tabline = ';'.join(columns)
-        elif tabline.startswith('*') and num_start and not num_end:
+        elif tabline.startswith('*') and num_start:
             if not tabline[1:].startswith(';'):
                 tabline = tabline[0] + ';' + tabline[1:]
 
             # should be 9 columns (Obj, IntInf missing)
             columns = tabline.split(';')
+            columns[0] = '2'
             columns.insert(3, '')  # empty Obj column
             columns.insert(5, '')  # empty InfInf column
             tabline = ';'.join(columns)
-        elif ('cutoff' in tabline or 'infeasible' in tabline) and num_start and not num_end:
+        elif ('cutoff' in tabline or 'infeasible' in tabline) and num_start:
             # for cutoff/infeas obj is cutoff/infeas instead of number
             columns = tabline.split(';')
             columns[3] = ''  # empty Obj column
@@ -107,10 +137,9 @@ def get_table(logstring):
         if len(tabline.split(';')) < 11 and num_start:
             return table
 
-        if num_start and not num_end:
+        if num_start:
             #print(tabline + ' ### start={s}'.format(s=num_start))
             columns = tabline.split(';')
-            columns[-1] = columns[-1][:-1]  # remove second's s
-            table = table.append(pd.Series(columns, index=table.columns), ignore_index=True)
+            table = table.append(pd.Series(fill_row_dict(columns), index=table.columns), ignore_index=True)
 
     return table
