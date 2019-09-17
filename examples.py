@@ -2,6 +2,8 @@
 from expression_encoding import encodeNN, encode_maxpool_layer, encode_inputs, \
     pretty_print, interval_arithmetic, encode_linear_layer, encode_relu_layer, \
     encode_from_file, encode_one_hot, encode_equivalence, print_to_smtlib, encode_ranking_layer
+from performance import Encoder
+import expression
 from keras_loader import KerasLoader
 import subprocess
 from os import path
@@ -279,6 +281,23 @@ def create_cancer_simple_lin_geq_zero2():
     input_his = [10, 10, 10, 10, 10, 10, 10, 10, 10]
 
     return encode_from_file('ExampleNNs/cancer_simple_lin.h5', input_los, input_his)
+
+
+def prepare_layer_wise_equivalence(path1, path2, input_los, input_his, mode):
+    old_eps = expression.epsilon
+    expression.epsilon = 1e-4
+    expression.use_grb_native = False
+
+    enc = Encoder()
+    enc.encode_equivalence_from_file(path1, path2, input_los, input_his, mode)
+
+    interval_arithmetic(enc.get_constraints())
+    for i in range(1, 3):
+        enc.optimize_layer(enc.a_layers, i)
+        enc.optimize_layer(enc.b_layers, i)
+        interval_arithmetic(enc.get_constraints())
+
+    return enc
 
 
 def example_runner():

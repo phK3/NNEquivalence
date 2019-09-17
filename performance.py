@@ -1,6 +1,6 @@
 
 from abc import ABC, abstractmethod
-from expression import Expression, Variable
+from expression import Expression, Variable, Linear, Sum, Neg
 from keras_loader import KerasLoader
 from expression_encoding import encode_equivalence, interval_arithmetic, hasLinear, encode_linear_layer, \
     encode_relu_layer, encode_one_hot, encode_ranking_layer, encode_equivalence_layer, create_gurobi_model, pretty_print, \
@@ -389,3 +389,35 @@ class Encoder:
             lb, ub = self.optimize_variable(var, opt_vars + [var], opt_constraints + [constr])
             var.update_bounds(lb, ub)
 
+
+    def check_equivalence_layer(self, layer_idx):
+        opt_vars = []
+        opt_constrs = []
+        if layer_idx == 0:
+            opt_vars += self.input_layer.get_outvars()[:]
+        else:
+            a_outs = self.a_layers[layer_idx - 1].get_outvars()[:]
+            b_outs = self.b_layers[layer_idx - 1].get_outvars()[:]
+            opt_vars += a_outs + b_outs
+
+            # at this stage we assume the previous layers to be equivalent
+            for avar, bvar in zip(a_outs, b_outs):
+                opt_constrs += [Linear(avar, bvar)]
+
+        bounds = []
+
+        for i, (a_var, a_constr, b_var, b_constr) in enumerate(
+                zip(self.a_layers[layer_idx].get_optimization_vars(), self.a_layers[layer_idx].get_optimization_constraints(),
+                    self.b_layers[layer_idx].get_optimization_vars(), self.b_layers[layer_idx].get_optimization_constraints())):
+            diff = Variable(layer_idx, i, 'E', 'diff')
+            diff_constr = Linear(Sum([a_var, Neg(b_var)]), diff)
+
+            if i == 1:
+                pretty_print(opt_vars + [a_var, b_var, diff], opt_constrs + [a_constr, b_constr, diff_constr])
+
+            lb, ub = self.optimize_variable(diff, opt_vars + [a_var, b_var, diff], opt_constrs + [a_constr, b_constr, diff_constr])
+            diff.update_bounds(lb, ub)
+
+            bounds.append((lb, ub))
+
+        return bounds
