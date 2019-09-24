@@ -332,7 +332,6 @@ def encode_layers(input_vars, layers, net_prefix):
 def encodeNN(layers, input_lower_bounds, input_upper_bounds, net_prefix, mode='normal'):
     if mode == 'one_hot':
         _, num_outs, _ = layers[-1]
-
         oh_layer = ('one_hot', num_outs, None)
         layers.append(oh_layer)
     elif mode == 'ranking':
@@ -347,7 +346,7 @@ def encodeNN(layers, input_lower_bounds, input_upper_bounds, net_prefix, mode='n
         _, num_outs, _ = layers[-1]
         oh_layer = (mode, num_outs, None)
         layers.append(oh_layer)
-    else:
+    elif not mode == 'normal':
         raise ValueError('Invalid mode for NN encoding: {name}'.format(name=mode))
 
     invars = encode_inputs(input_lower_bounds, input_upper_bounds)
@@ -355,6 +354,13 @@ def encodeNN(layers, input_lower_bounds, input_upper_bounds, net_prefix, mode='n
     layer_vars, layer_constrains = encode_layers(invars, layers, net_prefix)
 
     return [invars] + layer_vars, layer_constrains
+
+
+def encode_NN_from_file(file_name, input_lower_bounds, input_upper_bounds, net_prefix, mode='normal'):
+    kl = KerasLoader()
+    kl.load(file_name)
+
+    return encodeNN(kl.getHiddenLayers(), input_lower_bounds, input_upper_bounds, net_prefix, mode)
 
 
 def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):

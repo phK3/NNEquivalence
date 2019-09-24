@@ -1,5 +1,5 @@
-from expression import Expression, Variable
-from expression_encoding import flatten
+from expression import Expression, Variable, ffp
+from expression_encoding import flatten, encode_NN_from_file, interval_arithmetic
 import gurobipy as grb
 import itertools as itt
 import texttable as tt
@@ -44,6 +44,45 @@ def print_table(vars, model):
         row = [istring, astring, bstring, diff, estring]
 
         tab.add_row(row)
+
+    s = tab.draw()
+    print(s)
+
+
+def check_outputs(nn_file, ins, sort=True, printing=True):
+    nn_vars, nn_constraints = encode_NN_from_file(nn_file, ins, ins, '')
+    interval_arithmetic(nn_constraints)
+
+    outs = nn_vars[-1]
+    if sort:
+        outs = sorted(outs, key=lambda x: x.lo)
+
+    if printing:
+        for v in outs:
+            print(str(v) + ' : ' + str(v.lo))
+
+    return outs
+
+
+def compare_outputs(nn1, nn2, ins, sort=False):
+    outs1 = check_outputs(nn1, ins, sort, printing=False)
+    outs2 = check_outputs(nn2, ins, sort, printing=False)
+
+    tab = tt.Texttable()
+    if sort:
+        headings = ['NN 1', 'NN 2']
+    else:
+        headings = ['Neuron', 'NN 1', 'NN 2']
+
+    tab.header(headings)
+
+    for i, (a, b) in enumerate(zip(outs1, outs2)):
+        if sort:
+            astring = str(a) + ' : ' + str(a.lo)
+            bstring = str(b) + ' : ' + str(b.lo)
+            tab.add_row([astring, bstring])
+        else:
+            tab.add_row([i, ffp(a.lo), ffp(b.lo)])
 
     s = tab.draw()
     print(s)
