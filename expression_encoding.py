@@ -593,7 +593,7 @@ def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
 
         top = Variable(0, 0, 'E', 'top')
         # one_hot_vec and top need to be enclosed in [], so that indexing in binmult_matrix works
-        res_vars, mat_constrs = encode_binmult_matrix(outs2, 0, 'E', [one_hot_vec], [top])
+        res_vars, mat_constrs = encode_binmult_matrix(outs2, 0, 'Eoh', [one_hot_vec], [top])
 
         partial_matrix, partial_vars, partial_constrs = encode_partial_layer(k, outs2, 1, 'E')
 

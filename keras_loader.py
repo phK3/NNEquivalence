@@ -46,7 +46,6 @@ class KerasLoader(NNLoader):
             self.layers.append(create_layer(layer))
 
 
-        # TODO: no scientific notation in printed file
         model_weights_dict = self.f['model_weights']
         for layer in self.layers:
             layer_weights_dict = model_weights_dict[layer.name]
