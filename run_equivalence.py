@@ -175,6 +175,31 @@ def mnist_eqiv(mode):
     return model
 
 
+def encode_equiv(path1, path2, input_los, input_his, mode, name):
+    # accepts one_hot_partial_top_k, one_hot_diff as mode
+    enc = Encoder()
+    enc.encode_equivalence_from_file(path1, path2, input_los, input_his, mode, mode)
+
+    interval_arithmetic(enc.get_constraints())
+    for i in range(1, 3):
+        enc.optimize_layer(enc.a_layers, i)
+        enc.optimize_layer(enc.b_layers, i)
+        interval_arithmetic(enc.get_constraints())
+
+    if mode == 'one_hot_diff':
+        k = 0
+    else:
+        k = int(mode.split('_')[-1])
+
+    model = create_gurobi_model(enc.get_vars(), enc.get_constraints(), name)
+    diff = model.getVarByName('E_diff_0_{num}'.format(num=k))
+    model.setObjective(diff, grb.GRB.MAXIMIZE)
+    model.setParam('TimeLimit', 30 * 60)
+
+    # maximum for diff should be greater 0
+    return model
+
+
 def all_combinations(base, digits, c_num):
     if c_num >= base ** digits:
         raise ValueError('Insufficient number of combinations')
@@ -209,10 +234,11 @@ def evaluate_branching(limit_minutes):
     models = []
     teststart = timer()
 
+    '''
     # test MIPFocus = 3
     sys.stdout = open('Evaluation/mnist_eqiv_branch_MIPFocus3.txt', 'w')
     start = timer()
-    model = mnist_eqiv('optimize_ranking_top_3')
+    model = mnist_eqiv('one_hot_partial_top_3')
 
     model.setParam('MIPFocus', 3)
     model.update()
@@ -227,6 +253,7 @@ def evaluate_branching(limit_minutes):
     sys.stdout = stdout
     now = timer()
     print('mnist_eqiv_branch_MIPFocus3 evaluated, time={t}'.format(t=now - teststart))
+    '''
 
     for combination in range(0, 27):
         priorities = all_combinations(3, 3, combination)
@@ -236,7 +263,7 @@ def evaluate_branching(limit_minutes):
 
         sys.stdout = open('Evaluation/mnist_eqiv_branch_s={set}_delta={d}_pi={p}.txt'.format(set=s, d=delta, p=pi), 'w')
         start = timer()
-        model = mnist_eqiv('optimize_ranking_top_3')
+        model = mnist_eqiv('one_hot_partial_top_3')
 
         set_branch_priorities(model, s, delta, pi)
         model.setParam('TimeLimit', limit_minutes * 60)
@@ -347,7 +374,7 @@ def run_evaluation():
         sys.stdout = stdout
         now = timer()
         print('mnist_not_eqiv_ranking_top_{num} evaluated, time={t}'.format(t=now - teststart, num=k))
-    '''
+    
 
     sys.stdout = open('Evaluation/mnist_eqiv_one_hot_diff.txt', 'w')
     start = timer()
@@ -360,6 +387,7 @@ def run_evaluation():
     sys.stdout = stdout
     now = timer()
     print('mnist_eqiv_one_hot_diff evaluated, time={t}'.format(t=now - teststart))
+    
 
     for k in range(1, 4):
         sys.stdout = open('Evaluation/mnist_not_eqiv_one_hot_partial_top_{num}.txt'.format(num=k), 'w')
@@ -386,9 +414,87 @@ def run_evaluation():
         sys.stdout = stdout
         now = timer()
         print('mnist_eqiv_one_hot_partial_top_{num} evaluated, time={t}'.format(t=now - teststart, num=k))
+    
+    branching_models = evaluate_branching(10)
+    models.append(branching_models)
+
+    for k in range(1, 5):
+        sys.stdout = open('Evaluation/mnist_vs_p{per}_one_hot_partial_top_3.txt'.format(per=10*k), 'w')
+        start = timer()
+        path1 = examples + 'mnist8x8_lin.h5'
+        path2 = examples + 'mnist8x8_{per}p.h5'.format(per=10*k)
+        inl = [0 for i in range(64)]
+        inh = [16 for i in range(64)]
+        mode = 'one_hot_partial_top_3'
+        model = encode_equiv(path1, path2, inl, inh, mode, 'mnist_vs_p{per}_one_hot_partial_top_3'.format(per=10*k))
+        model.optimize()
+        end = timer()
+        models.append(model)
+        print('### Total Time elapsed: {t}'.format(t=end - start))
+
+        sys.stdout = stdout
+        now = timer()
+        print('mnist_vs_p_{per}_one_hot_partial_top_3 evaluated, time={t}'.format(t=now - teststart, per=10*k))
 
 
-    models[-1].setParam('TimeLimit', 300 * 60)
-    models[-1].optimize()
+    for k in range(3, 5):
+        sys.stdout = open('Evaluation/mnist_p{per}_eqiv_one_hot_partial_top_3.txt'.format(per=10*k), 'w')
+        start = timer()
+        path = examples + 'mnist8x8_{per}p.h5'.format(per=10*k)
+        inl = [0 for i in range(64)]
+        inh = [16 for i in range(64)]
+        mode = 'one_hot_partial_top_3'
+        model = encode_equiv(path, path, inl, inh, mode, 'mnist_p{per}_eqiv_one_hot_partial_top_3'.format(per=10*k))
+        model.optimize()
+        end = timer()
+        models.append(model)
+        print('### Total Time elapsed: {t}'.format(t=end - start))
+
+        sys.stdout = stdout
+        now = timer()
+        print('mnist_p{per}_eqiv_one_hot_partial_top_3 evaluated, time={t}'.format(t=now - teststart, per=10*k))
+    '''
+
+    for k in range(5, 10):
+        name = 'mnist_vs_p{per}_retrain_one_hot_partial_top_3.txt'.format(per=10 * k)
+        sys.stdout = open('Evaluation/' + name, 'w')
+        start = timer()
+        path1 = examples + 'mnist8x8_lin.h5'
+        path2 = examples + 'mnist8x8_{per}p_retrain.h5'.format(per=10 * k)
+        inl = [0 for i in range(64)]
+        inh = [16 for i in range(64)]
+        mode = 'one_hot_partial_top_3'
+        model = encode_equiv(path1, path2, inl, inh, mode, name)
+        model.optimize()
+        end = timer()
+        models.append(model)
+        print('### Total Time elapsed: {t}'.format(t=end - start))
+
+        sys.stdout = stdout
+        now = timer()
+        print(name + ', time={t}'.format(t=now - teststart))
+
+    for k in range(5, 10):
+        name = 'mnist_p{per}_retrain_eqiv_one_hot_partial_top_3.txt'.format(per=10 * k)
+        sys.stdout = open('Evaluation/' + name, 'w')
+        start = timer()
+        path = examples + 'mnist8x8_{per}p_retrain.h5'.format(per=10 * k)
+        inl = [0 for i in range(64)]
+        inh = [16 for i in range(64)]
+        mode = 'one_hot_partial_top_3'
+        model = encode_equiv(path, path, inl, inh, mode, name)
+        model.optimize()
+        end = timer()
+        models.append(model)
+        print('### Total Time elapsed: {t}'.format(t=end - start))
+
+        sys.stdout = stdout
+        now = timer()
+        print(name + ', time={t}'.format(t=now - teststart))
+
+
+
+    models[-2].setParam('TimeLimit', 300 * 60)
+    models[-2].optimize()
 
     return models
