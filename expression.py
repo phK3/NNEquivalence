@@ -376,10 +376,18 @@ class Relu(Expression):
     def to_gurobi(self, model):
         c_name = 'ReLU_{n}_{layer}_{row}'.format(n=self.net, layer=self.layer, row=self.row)
         ret_constr = None
-        if use_grb_native:
+
+        if self.input.getLo() >= 0:
+            # relu must be active
+            ret_constr = model.addConstr(self.output.to_gurobi(model) == self.input.to_gurobi(model), name=c_name)
+        elif self.input.getHi() <= 0:
+            # relu must be inactive
+            ret_constr = model.addConstr(self.output.to_gurobi(model) == 0, name=c_name)
+        elif use_grb_native:
             ret_constr = model.addConstr(self.output.to_gurobi(model) == grb.max_(self.input.to_gurobi(model), 0), name=c_name)
         else:
-            bigM = self.input.getHi()
+            # TODO: maybe try asymmetric bounds
+            bigM = max(abs(self.input.getLo()), abs(self.input.getHi()))
             model.addConstr(self.output.to_gurobi(model) >= 0, name=c_name + '_a')
             model.addConstr(self.output.to_gurobi(model) >= self.input.to_gurobi(model), name=c_name + '_b')
             model.addConstr(self.input.to_gurobi(model) - bigM * self.delta.to_gurobi(model) <= 0, name=c_name + '_c')
