@@ -396,7 +396,8 @@ class Relu(Expression):
             model.addConstr(self.input.to_gurobi(model) + (1 - self.delta.to_gurobi(model)) * -m_input
                             >= 0, name=c_name + '_d')
 
-            M_active = self.output.getHi() - self.input.getLo()
+            #should not be < 0, because of if-else structure
+            M_active = self.input.getHi()
             model.addConstr(self.output.to_gurobi(model)
                             <= self.input.to_gurobi(model) + (1 - self.delta.to_gurobi(model)) * M_active, name=c_name + '_e')
 
