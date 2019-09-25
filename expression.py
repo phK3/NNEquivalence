@@ -747,15 +747,20 @@ class BinMult(Expression):
             ret_constr = model.addConstr((self.binvar.to_gurobi(model) == 1)
                                          >> (self.result_var.to_gurobi(model) == self.factor.to_gurobi(model)), name=c_name + '_2')
         else:
-            bigM = self.factor.getHi()
+            M_res = self.result_var.getHi()
+            m_res = self.result_var.getLo()
+            model.addConstr(self.result_var.to_gurobi(model) <= M_res * self.binvar.to_gurobi(model),
+                            name=c_name + '_y<=0')
+            model.addConstr(self.result_var.to_gurobi(model) >= m_res * self.binvar.to_gurobi(model),
+                            name=c_name + '_y>=0')
 
-            model.addConstr(self.result_var.to_gurobi(model) <= bigM * self.binvar.to_gurobi(model), name=c_name + '_1')
-            model.addConstr(self.factor.to_gurobi(model) - self.result_var.to_gurobi(model)
-                            <= (1 - self.binvar.to_gurobi(model)) * bigM, name=c_name + '_2')
-            ret_constr = model.addConstr(self.result_var.to_gurobi(model) <= self.factor.to_gurobi(model), name=c_name + '_3')
-
-            smallM = self.factor.getLo()
-            model.addConstr(self.result_var.to_gurobi(model) >= smallM * self.binvar.to_gurobi(model), name=c_name + '_4')
+            # upper and lower bounds of res_var - factor
+            M = self.result_var.getHi() - self.factor.getLo()
+            m = self.result_var.getLo() - self.factor.getHi()
+            model.addConstr(self.result_var.to_gurobi(model) - self.factor.to_gurobi(model)
+                            <= M * (1 - self.binvar.to_gurobi(model)), name=c_name + '_y<=x')
+            ret_constr = model.addConstr(self.result_var.to_gurobi(model) - self.factor.to_gurobi(model)
+                                         >= m * (1 - self.binvar.to_gurobi(model)), name=c_name + '_y>=x')
 
         # return last added constraint, don't know what to return instead and all other to_gurobis return a constraint
         return ret_constr
