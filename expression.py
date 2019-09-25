@@ -7,6 +7,7 @@ import gurobipy as grb
 # (right now only for binary multiplication)
 # TODO: extend to ReLU, Max, ...
 use_grb_native = True
+use_asymmetric_bounds = False
 
 # 999999 1e-8
 default_bound = 999999
@@ -385,17 +386,35 @@ class Relu(Expression):
             ret_constr = model.addConstr(self.output.to_gurobi(model) == 0, name=c_name)
         elif use_grb_native:
             ret_constr = model.addConstr(self.output.to_gurobi(model) == grb.max_(self.input.to_gurobi(model), 0), name=c_name)
+        elif use_asymmetric_bounds:
+            model.addConstr(self.output.to_gurobi(model) >= 0, name=c_name + '_a')
+            model.addConstr(self.output.to_gurobi(model) >= self.input.to_gurobi(model), name=c_name + '_b')
+
+            M_input = self.input.getHi()
+            m_input = self.input.getLo()
+            model.addConstr(self.input.to_gurobi(model) - M_input * self.delta.to_gurobi(model) <= 0, name=c_name + '_c')
+            model.addConstr(self.input.to_gurobi(model) + (1 - self.delta.to_gurobi(model)) * -m_input
+                            >= 0, name=c_name + '_d')
+
+            M_active = self.output.getHi() - self.input.getLo()
+            model.addConstr(self.output.to_gurobi(model)
+                            <= self.input.to_gurobi(model) + (1 - self.delta.to_gurobi(model)) * M_active, name=c_name + '_e')
+
+            M_output = self.output.getHi()
+            ret_constr = model.addConstr(self.output.to_gurobi(model) <= self.delta.to_gurobi(model) * M_output, name=c_name + '_f')
         else:
-            # TODO: maybe try asymmetric bounds
             bigM = max(abs(self.input.getLo()), abs(self.input.getHi()))
             model.addConstr(self.output.to_gurobi(model) >= 0, name=c_name + '_a')
             model.addConstr(self.output.to_gurobi(model) >= self.input.to_gurobi(model), name=c_name + '_b')
-            model.addConstr(self.input.to_gurobi(model) - bigM * self.delta.to_gurobi(model) <= 0, name=c_name + '_c')
+            model.addConstr(self.input.to_gurobi(model) - bigM * self.delta.to_gurobi(model) <= 0,
+                            name=c_name + '_c')
             model.addConstr(self.input.to_gurobi(model) + (1 - self.delta.to_gurobi(model)) * bigM
                             >= 0, name=c_name + '_d')
             model.addConstr(self.output.to_gurobi(model)
-                            <= self.input.to_gurobi(model) + (1 - self.delta.to_gurobi(model)) * bigM, name=c_name + '_e')
-            ret_constr = model.addConstr(self.output.to_gurobi(model) <= self.delta.to_gurobi(model) * bigM, name=c_name + '_f')
+                            <= self.input.to_gurobi(model) + (1 - self.delta.to_gurobi(model)) * bigM,
+                            name=c_name + '_e')
+            ret_constr = model.addConstr(self.output.to_gurobi(model) <= self.delta.to_gurobi(model) * bigM,
+                                         name=c_name + '_f')
         return ret_constr
 
 
