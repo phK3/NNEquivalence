@@ -853,3 +853,76 @@ class Impl(Expression):
     def __repr__(self):
         return '{d} = {c} --> {left} <= {right}'.format(d=str(self.delta),
                                                         c=str(self.constant), left=str(self.lhs), right=str(self.rhs))
+
+
+class IndicatorToggle(Expression):
+    # sets diff_i = term_i, if indicator = constant, otherwise diff_i <= min(x_is)
+
+    def __init__(self, indicators, constant, terms, diffs):
+        net, layer, row = indicators[0].getIndex()
+        super(IndicatorToggle, self).__init__(net, layer, row)
+        self.indicators = indicators
+        for indicator in self.indicators:
+            indicator.setLo(0)
+            indicator.setHi(1)
+        self.constant = constant
+        self.terms = terms
+        self.diffs = diffs
+        self.lo = -default_bound
+        self.hi = default_bound
+        self.terms_lo = -default_bound
+
+    def tighten_interval(self):
+        terms_lo_new = default_bound
+        max_hi = -default_bound
+        max_lo = default_bound
+        # TODO: take indicators into account
+        for t, d in zip(self.terms, self.diffs):
+            t.tighten_interval()
+            tlo = t.getLo()
+            thi = t.getHi()
+            d.update_bounds(-default_bound, thi)
+            # was intended to calc max directly, but put got other idea
+            # self.update_bounds(max_lo, max_hi)
+            if tlo < terms_lo_new:
+                terms_lo_new = tlo
+
+        if terms_lo_new > self.terms_lo:
+            self.terms_lo = terms_lo_new
+
+        for d in self.diffs:
+            d.update_bounds(self.terms_lo, default_bound)
+
+    def to_smtlib(self):
+        enc = []
+        bigL = Constant(self.terms_lo, self.net, self.layer, self.row)
+        for t, ind, diff in zip(self.terms, self.indicators, self.diffs):
+            enc_i = Impl(ind, self.constant, t, diff).to_smtlib()
+            enc_i += '\n' + Impl(ind, self.constant, diff, t).to_smtlib()
+            enc_i += '\n' + Impl(ind, 1 - self.constant, bigL, diff).to_smtlib()
+            enc_i += '\n' + Impl(ind, 1 - self.constant, diff, bigL).to_smtlib()
+            enc.append(enc_i)
+
+        return '\n'.join(enc)
+
+    def to_gurobi(self, model):
+        ret_constr = None
+
+        bigL = Constant(self.terms_lo, self.net, self.layer, self.row)
+        for t, ind, diff in zip(self.terms, self.indicators, self.diffs):
+            Impl(ind, self.constant, t, diff).to_gurobi(model)
+            Impl(ind, self.constant, diff, t).to_gurobi(model)
+            # somehow Impl(..., bigL, diff) yields invalid sense for indicator constraint
+            Impl(ind, (1 - self.constant), Neg(diff), Neg(bigL)).to_gurobi(model)
+            ret_constr = Impl(ind, 1 - self.constant, diff, bigL).to_gurobi(model)
+
+        return ret_constr
+
+    def __repr__(self):
+        reps = []
+        for t, ind, diff in zip(self.terms, self.indicators, self.diffs):
+            reps.append('{d} = {c} --> {left} = {right}'.format(d=str(ind), c=str(self.constant), left=str(diff),
+                                                                right=str(t)))
+            reps.append('{d} = {c} --> {left} = {right}'.format(d=str(ind), c=str(1 - self.constant), left=str(diff),
+                                                                right=str(self.terms_lo)))
+        return '\n'.join(reps)

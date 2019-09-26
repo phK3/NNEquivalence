@@ -205,9 +205,9 @@ class Encoder:
                     vars.append(oh_vars)
                     vars.append(oh_outs)
                     constraints.append(oh_constraints)
-                    invars = oh_outs
 
                     net_layers.append(DefaultLayer('one_hot', num_neurons, invars, oh_vars, oh_outs, oh_constraints))
+                    invars = oh_outs
 
         return net_layers
 

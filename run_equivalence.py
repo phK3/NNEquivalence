@@ -418,6 +418,8 @@ def run_evaluation():
     branching_models = evaluate_branching(10)
     models.append(branching_models)
 
+    
+    expression.use_asymmetric_bounds = True
     for k in range(1, 5):
         sys.stdout = open('Evaluation/mnist_vs_p{per}_one_hot_partial_top_3.txt'.format(per=10*k), 'w')
         start = timer()
@@ -453,8 +455,10 @@ def run_evaluation():
         sys.stdout = stdout
         now = timer()
         print('mnist_p{per}_eqiv_one_hot_partial_top_3 evaluated, time={t}'.format(t=now - teststart, per=10*k))
-    '''
 
+
+    '''
+    expression.use_asymmetric_bounds = True
     for k in range(5, 10):
         name = 'mnist_vs_p{per}_retrain_one_hot_partial_top_3.txt'.format(per=10 * k)
         sys.stdout = open('Evaluation/' + name, 'w')
@@ -493,8 +497,9 @@ def run_evaluation():
         print(name + ', time={t}'.format(t=now - teststart))
 
 
-
+    '''
     models[-2].setParam('TimeLimit', 300 * 60)
     models[-2].optimize()
+    '''
 
     return models
