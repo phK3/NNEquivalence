@@ -1,6 +1,6 @@
 
 from expression import Variable, Linear, Relu, Max, Multiplication, Constant, Sum, Neg, One_hot, Greater_Zero, \
-    Geq, BinMult, Gt_Int, Impl, IndicatorToggle
+    Geq, BinMult, Gt_Int, Impl, IndicatorToggle, TopKGroup, ExtremeGroup
 from keras_loader import KerasLoader
 import gurobipy as grb
 import datetime
@@ -8,7 +8,7 @@ import datetime
 # set this flag to only print bounds for deltas and inputs
 # (for smtlib format)
 hide_non_deltas = True
-
+use_context_groups = False
 
 def flatten(collection):
     for x in collection:
@@ -241,6 +241,10 @@ def encode_sort_one_hot_layer(prev_neurons, layerIndex, netPrefix, mode):
 
     oh_constraint = Linear(Sum(one_hot_vec), Constant(1, netPrefix, layerIndex, 0))
     order_constrs = [Geq(top, neuron) for neuron in prev_neurons]
+
+    if use_context_groups:
+        context = TopKGroup(top, prev_neurons, 1)
+        order_constrs.append(context)
 
     outs = None
     vars = None
@@ -603,12 +607,19 @@ def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
 
         partial_matrix, partial_vars, partial_constrs = encode_partial_layer(k, outs2, 1, 'E')
 
+        context_constraints = []
+        if use_context_groups:
+            context_constraints.append(ExtremeGroup(top, outs2))
+            # partial_vars = ([E_y_ij, ...] + [E_o_1_0, E_o_1_1, ..., E_o_1_(k-1)])
+            for i in range(1, k+1):
+                context_constraints.append(TopKGroup(partial_vars[i - (k + 1)], outs2, i))
+
         diff = Variable(0, k, 'E', 'diff')
         diff_constr = Linear(Sum([partial_vars[-1], Neg(top)]), diff)
 
         deltas = [top] + res_vars + partial_matrix + partial_vars
         diffs = [diff]
-        constraints = mat_constrs + partial_constrs + [diff_constr]
+        constraints = mat_constrs + partial_constrs + context_constraints + [diff_constr]
     elif mode == 'one_hot_diff':
         # assumes outs1 = one hot vector of NN1
         # assumes outs2 = output of NN2

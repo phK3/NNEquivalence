@@ -841,6 +841,7 @@ class Impl(Expression):
                                          >> (self.lhs.to_gurobi(model) <= self.rhs.to_gurobi(model)), name=c_name)
         else:
             term = Sum([self.lhs, Neg(self.rhs)])
+            term.tighten_interval()
             bigM = term.getHi()
 
             if self.constant == 0:
@@ -926,3 +927,90 @@ class IndicatorToggle(Expression):
             reps.append('{d} = {c} --> {left} = {right}'.format(d=str(ind), c=str(1 - self.constant), left=str(diff),
                                                                 right=str(self.terms_lo)))
         return '\n'.join(reps)
+
+
+class TopKGroup(Expression):
+    # performs bounds tightening, s.t. bounds for element are updated to the bounds of the top-k element
+
+    def __init__(self, out, ins, k):
+        '''
+        Initializes TopK context group. After call to tighten_interval(), the output element's bounds are
+        tightened to the k-greatest upper bound and the k-greatest lower bound (with k starting from 1 for the
+        greatest element)
+        :param out: the output element
+        :param ins: list of input elements
+        :param k: 1 - for the greatest element, ... k - for the k-greatest element
+        '''
+        net, layer, row = out.getIndex()
+        super(TopKGroup, self).__init__(net, layer, row)
+        self.ins = ins
+        self.k = k
+        self.out = out
+        self.out.update_bounds(-default_bound, default_bound)
+        self.lo = self.out.getLo()
+        self.hi = self.out.getHi()
+
+    def tighten_interval(self):
+        for i in self.ins:
+            i.tighten_interval()
+        self.out.tighten_interval()
+
+        in_lo = sorted(self.ins, key=lambda x: x.getLo())[-self.k].getLo()
+        in_hi = sorted(self.ins, key=lambda x: x.getHi())[-self.k].getHi()
+        self.out.update_bounds(in_lo, in_hi)
+        self.update_bounds(in_lo, in_hi)
+
+    def to_smtlib(self):
+        return ''
+
+    def to_gurobi(self, model):
+        return None
+
+    def __repr__(self):
+        in_rep = []
+        for i in self.ins:
+            in_rep.append(str(i))
+
+        return '{o} in top_{k}({irs})'.format(o=str(self.out), k=self.k, irs=', '.join(in_rep))
+
+
+class ExtremeGroup(Expression):
+    # performs bounds tightening, s.t. bounds for element are updated to the most extreme bounds in the input values
+
+    def __init__(self, out, ins):
+        '''
+        Initializes Extreme context group. After call to tighten_interval(), the output element's bounds are
+        tightened to the greatest upper bound and the smallest lower bound amongst all input elements
+        :param out: the output element
+        :param ins: list of input elements
+        '''
+        net, layer, row = out.getIndex()
+        super(ExtremeGroup, self).__init__(net, layer, row)
+        self.ins = ins
+        self.out = out
+        self.out.update_bounds(-default_bound, default_bound)
+        self.lo = self.out.getLo()
+        self.hi = self.out.getHi()
+
+    def tighten_interval(self):
+        for i in self.ins:
+            i.tighten_interval()
+        self.out.tighten_interval()
+
+        in_lo = sorted(self.ins, key=lambda x: x.getLo())[0].getLo()
+        in_hi = sorted(self.ins, key=lambda x: x.getHi())[-1].getHi()
+        self.out.update_bounds(in_lo, in_hi)
+        self.update_bounds(in_lo, in_hi)
+
+    def to_smtlib(self):
+        return ''
+
+    def to_gurobi(self, model):
+        return None
+
+    def __repr__(self):
+        in_rep = []
+        for i in self.ins:
+            in_rep.append(str(i))
+
+        return '{o} in extreme({irs})'.format(o=str(self.out), irs=', '.join(in_rep))
