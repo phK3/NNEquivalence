@@ -4,6 +4,7 @@ from expression_encoding import encodeNN, encode_maxpool_layer, encode_inputs, \
     encode_from_file, encode_one_hot, encode_equivalence, print_to_smtlib, encode_ranking_layer
 from performance import Encoder
 import expression
+import flags_constants as fc
 from keras_loader import KerasLoader
 import subprocess
 from os import path
@@ -286,7 +287,7 @@ def create_cancer_simple_lin_geq_zero2():
 def prepare_layer_wise_equivalence(path1, path2, input_los, input_his, mode):
     old_eps = expression.epsilon
     expression.epsilon = 1e-4
-    expression.use_grb_native = False
+    fc.use_grb_native = False
 
     enc = Encoder()
     enc.encode_equivalence_from_file(path1, path2, input_los, input_his, mode)

@@ -1,12 +1,9 @@
 from abc import ABC, abstractmethod
 from numpy import format_float_positional
 import numbers
+import flags_constants as fc
 import gurobipy as grb
 
-# controls, if gurobi general constraints are used
-# (right now only for binary multiplication)
-# TODO: extend to ReLU, Max, ...
-use_grb_native = True
 use_asymmetric_bounds = False
 
 # 999999 1e-8
@@ -384,7 +381,7 @@ class Relu(Expression):
         elif self.input.getHi() <= 0:
             # relu must be inactive
             ret_constr = model.addConstr(self.output.to_gurobi(model) == 0, name=c_name)
-        elif use_grb_native:
+        elif fc.use_grb_native:
             ret_constr = model.addConstr(self.output.to_gurobi(model) == grb.max_(self.input.to_gurobi(model), 0), name=c_name)
         elif use_asymmetric_bounds:
             model.addConstr(self.output.to_gurobi(model) >= 0, name=c_name + '_a')
@@ -650,7 +647,7 @@ class Gt_Int(Expression):
     def to_gurobi(self, model):
         c_name = 'Gt_Int_{layer}_{row}'.format(layer=self.layer, row=self.row)
 
-        if use_grb_native:
+        if fc.use_grb_native:
             c1 = model.addConstr((self.delta.to_gurobi(model) == 1)
                                  >> (self.lhs.to_gurobi(model) - self.rhs.to_gurobi(model) >= 1), name=c_name + '_a')
             c2 = model.addConstr((self.delta.to_gurobi(model) == 0)
@@ -761,7 +758,7 @@ class BinMult(Expression):
 
         ret_constr = None
 
-        if use_grb_native:
+        if fc.use_grb_native:
             model.addConstr((self.binvar.to_gurobi(model) == 0) >> (self.result_var.to_gurobi(model) == 0), name=c_name + '_1')
             ret_constr = model.addConstr((self.binvar.to_gurobi(model) == 1)
                                          >> (self.result_var.to_gurobi(model) == self.factor.to_gurobi(model)), name=c_name + '_2')
@@ -836,7 +833,7 @@ class Impl(Expression):
 
         ret_constr = None
 
-        if use_grb_native:
+        if fc.use_grb_native:
             ret_constr = model.addConstr((self.delta.to_gurobi(model) == self.constant)
                                          >> (self.lhs.to_gurobi(model) <= self.rhs.to_gurobi(model)), name=c_name)
         else:

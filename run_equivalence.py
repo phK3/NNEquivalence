@@ -4,6 +4,7 @@ import expression
 from expression_encoding import pretty_print, interval_arithmetic, create_gurobi_model
 import gurobipy as grb
 import sys
+import flags_constants as fc
 from timeit import default_timer as timer
 
 examples = 'ExampleNNs/'
@@ -228,7 +229,7 @@ def set_branch_priorities(model, s, delta, pi):
 
 
 def evaluate_branching(limit_minutes):
-    expression.use_grb_native = False
+    fc.use_grb_native = False
 
     stdout = sys.stdout
     models = []
@@ -280,7 +281,7 @@ def evaluate_branching(limit_minutes):
     return models
 
 def run_evaluation():
-    expression.use_grb_native = False
+    fc.use_grb_native = False
 
     stdout = sys.stdout
     models = []
