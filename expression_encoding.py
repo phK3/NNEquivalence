@@ -7,8 +7,6 @@ import gurobipy as grb
 import datetime
 import flags_constants as fc
 
-use_eps_maximum = False
-
 def flatten(collection):
     for x in collection:
         if isinstance(x, list):
@@ -240,7 +238,7 @@ def encode_sort_one_hot_layer(prev_neurons, layerIndex, netPrefix, mode):
 
     oh_constraint = Linear(Sum(one_hot_vec), Constant(1, netPrefix, layerIndex, 0))
 
-    if use_eps_maximum:
+    if fc.use_eps_maximum:
         eps = Constant(epsilon, netPrefix, layerIndex, 0)
         order_constrs = [Impl(pi, 0, Sum([neuron, eps]), top) for neuron, pi in zip(prev_neurons, one_hot_vec)]
         pretty_print([], order_constrs)
