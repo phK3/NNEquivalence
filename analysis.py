@@ -134,6 +134,8 @@ def get_table(logstring, res_name=''):
             else:
                 if e in ['-', '']:
                     filled.append(float('nan'))
+                elif e.endswith('%'):
+                    filled.append(float(e[:-1]))
                 else:
                     filled.append(float(e))
 
