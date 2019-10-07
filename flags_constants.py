@@ -13,4 +13,3 @@ default_bound = 999999
 
 # epsilon used for true greater than, and comparisons that are dependent on order
 epsilon = 1e-8
-

@@ -1,6 +1,7 @@
 
 from expression import Variable, Linear, Relu, Max, Multiplication, Constant, Sum, Neg, One_hot, Greater_Zero, \
-    Geq, BinMult, Gt_Int, Impl, IndicatorToggle, TopKGroup, ExtremeGroup, epsilon
+    Geq, BinMult, Gt_Int, Impl, IndicatorToggle, TopKGroup, ExtremeGroup
+from flags_constants import epsilon
 from keras_loader import KerasLoader
 import gurobipy as grb
 import datetime

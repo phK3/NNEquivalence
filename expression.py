@@ -4,10 +4,6 @@ import numbers
 import flags_constants as fc
 import gurobipy as grb
 
-# 999999 1e-8
-default_bound = 999999
-epsilon = 1e-8
-
 def ffp(x):
     if x < 0:
         s = format_float_positional(-x, trim='-')
@@ -44,8 +40,8 @@ def makeGt(lhs, rhs):
 class Expression(ABC):
 
     def __init__(self, net, layer, row):
-        self.lo = -default_bound
-        self.hi = default_bound
+        self.lo = -fc.default_bound
+        self.hi = fc.default_bound
         self.hasLo = False
         self.hasHi = False
 
@@ -139,8 +135,8 @@ class Variable(Expression):
 
         self.hasLo = False
         self.hasHi = False
-        self.lo = -default_bound
-        self.hi = default_bound
+        self.lo = -fc.default_bound
+        self.hi = fc.default_bound
 
         self.has_grb_var = False
         self.grb_var = None
@@ -202,8 +198,8 @@ class Sum(Expression):
         net, layer, row = terms[0].getIndex()
         super(Sum, self).__init__(net, layer, row)
         self.children = terms
-        self.lo = -default_bound
-        self.hi = default_bound
+        self.lo = -fc.default_bound
+        self.hi = fc.default_bound
 
     def tighten_interval(self):
         l = 0
@@ -268,8 +264,8 @@ class Multiplication(Expression):
         super(Multiplication, self).__init__(net, layer, row)
         self.constant = constant
         self.variable = variable
-        self.lo = -default_bound
-        self.hi = default_bound
+        self.lo = -fc.default_bound
+        self.hi = fc.default_bound
 
     def tighten_interval(self):
         val1 = self.constant.value * self.variable.getLo()
@@ -328,7 +324,7 @@ class Relu(Expression):
         self.output.setLo(0)
         self.input = input
         self.lo = 0
-        self.hi = default_bound
+        self.hi = fc.default_bound
         self.delta = delta
         self.delta.setLo(0)
         self.delta.setHi(1)
@@ -425,8 +421,8 @@ class Max(Expression):
         self.output = output
         self.in_a = in_a
         self.in_b = in_b
-        self.lo = -default_bound
-        self.hi = default_bound
+        self.lo = -fc.default_bound
+        self.hi = fc.default_bound
         self.delta = delta
         self.delta.setLo(0)
         self.delta.setHi(1)
@@ -720,8 +716,8 @@ class BinMult(Expression):
         self.binvar.setHi(1)
         self.factor = factor
         self.result_var = result_var
-        self.lo = -default_bound
-        self.hi = default_bound
+        self.lo = -fc.default_bound
+        self.hi = fc.default_bound
 
     def tighten_interval(self):
         self.factor.tighten_interval()
@@ -864,20 +860,20 @@ class IndicatorToggle(Expression):
         self.constant = constant
         self.terms = terms
         self.diffs = diffs
-        self.lo = -default_bound
-        self.hi = default_bound
-        self.terms_lo = -default_bound
+        self.lo = -fc.default_bound
+        self.hi = fc.default_bound
+        self.terms_lo = -fc.default_bound
 
     def tighten_interval(self):
-        terms_lo_new = default_bound
-        max_hi = -default_bound
-        max_lo = default_bound
+        terms_lo_new = fc.default_bound
+        max_hi = -fc.default_bound
+        max_lo = fc.default_bound
         # TODO: take indicators into account
         for t, d in zip(self.terms, self.diffs):
             t.tighten_interval()
             tlo = t.getLo()
             thi = t.getHi()
-            d.update_bounds(-default_bound, thi)
+            d.update_bounds(-fc.default_bound, thi)
             # was intended to calc max directly, but put got other idea
             # self.update_bounds(max_lo, max_hi)
             if tlo < terms_lo_new:
@@ -887,7 +883,7 @@ class IndicatorToggle(Expression):
             self.terms_lo = terms_lo_new
 
         for d in self.diffs:
-            d.update_bounds(self.terms_lo, default_bound)
+            d.update_bounds(self.terms_lo, fc.default_bound)
 
     def to_smtlib(self):
         enc = []
@@ -941,7 +937,7 @@ class TopKGroup(Expression):
         self.ins = ins
         self.k = k
         self.out = out
-        self.out.update_bounds(-default_bound, default_bound)
+        self.out.update_bounds(-fc.default_bound, fc.default_bound)
         self.lo = self.out.getLo()
         self.hi = self.out.getHi()
 
@@ -983,7 +979,7 @@ class ExtremeGroup(Expression):
         super(ExtremeGroup, self).__init__(net, layer, row)
         self.ins = ins
         self.out = out
-        self.out.update_bounds(-default_bound, default_bound)
+        self.out.update_bounds(-fc.default_bound, fc.default_bound)
         self.lo = self.out.getLo()
         self.hi = self.out.getHi()
 
