@@ -1,6 +1,6 @@
 
 from abc import ABC, abstractmethod
-from expression import Expression, Variable, Linear, Sum, Neg
+from expression import Expression, Variable, Linear, Sum, Neg, Constant, Geq
 from keras_loader import KerasLoader
 from expression_encoding import encode_equivalence, interval_arithmetic, hasLinear, encode_linear_layer, \
     encode_relu_layer, encode_one_hot, encode_ranking_layer, encode_equivalence_layer, create_gurobi_model, pretty_print, \
@@ -65,12 +65,16 @@ class InputLayer(Layer):
     def __init__(self, num_neurons, invars):
         super(InputLayer, self).__init__('input', num_neurons, invars, [], invars, [])
         self.invars = invars
+        self.constraints = []
+
+    def add_input_constraints(self, in_constraints):
+        self.constraints += in_constraints
 
     def get_optimization_vars(self):
         return []
 
     def get_optimization_constraints(self):
-        return []
+        return self.constraints
 
     def get_all_vars(self):
         return self.invars
@@ -116,6 +120,51 @@ class Encoder:
 
         num_neurons = len(lower_bounds)
         return InputLayer(num_neurons, vars)
+
+    def add_input_radius(self, center, radius, metric='manhattan'):
+        '''
+        Constrains input values, s.t. they have to be within a circle around a specified center
+         of specified radius according to a specified metric.
+
+        :param center: The center of the circle
+        :param radius: The radius of the circle
+        :param metric: either chebyshev OR manhattan is supported
+        :return:
+        '''
+
+        if not metric in ['manhattan', 'chebyshev']:
+            raise ValueError('Metric {m} is not supported!'.format(m=metric))
+
+        invars = self.input_layer.get_outvars()
+        dim = len(invars)
+
+        if not len(center) == dim:
+            raise ValueError('Center has dimension {cdim}, but input has dimension {idim}'.format(cdim=len(center),
+                                                                                                  idim=dim))
+
+        for i, invar in enumerate(invars):
+            invar.update_bounds(center[i] - radius, center[i] + radius)
+
+        if metric == 'manhattan':
+            centered_inputs = []
+            netPrefix, _, _ = invars[0].getIndex()
+            r = Constant(radius, netPrefix, 0, 0)
+            for i in range(dim):
+                centered_inputs.append(Sum([invars[i], Neg(Constant(center[i], netPrefix, 0, i))]))
+
+            ineqs = []
+            for i in range(2 ** dim):
+                terms = []
+                for j in range(dim):
+                    neg = (i // 2 ** j) % 2
+                    if neg > 0:
+                        terms.append(Neg(centered_inputs[j]))
+                    else:
+                        terms.append(centered_inputs[j])
+
+                ineqs.append(Geq(r, Sum(terms)))
+
+            self.input_layer.add_input_constraints(ineqs)
 
     def encode_layers(self, input_vars, layers, net_prefix, output_mode=('matrix', -1)):
         # outputs modes to specify what is output of ranking layer:
