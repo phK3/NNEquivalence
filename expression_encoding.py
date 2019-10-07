@@ -7,7 +7,6 @@ import gurobipy as grb
 import datetime
 import flags_constants as fc
 
-use_context_groups = False
 use_eps_maximum = False
 
 def flatten(collection):
@@ -248,7 +247,7 @@ def encode_sort_one_hot_layer(prev_neurons, layerIndex, netPrefix, mode):
     else:
         order_constrs = [Geq(top, neuron) for neuron in prev_neurons]
 
-    if use_context_groups:
+    if fc.use_context_groups:
         context = TopKGroup(top, prev_neurons, 1)
         order_constrs.append(context)
 
@@ -614,7 +613,7 @@ def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
         partial_matrix, partial_vars, partial_constrs = encode_partial_layer(k, outs2, 1, 'E')
 
         context_constraints = []
-        if use_context_groups:
+        if fc.use_context_groups:
             context_constraints.append(ExtremeGroup(top, outs2))
             # partial_vars = ([E_y_ij, ...] + [E_o_1_0, E_o_1_1, ..., E_o_1_(k-1)])
             for i in range(1, k+1):

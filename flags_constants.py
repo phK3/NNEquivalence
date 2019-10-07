@@ -17,3 +17,7 @@ epsilon = 1e-8
 # set this flag to only print bounds for deltas and inputs
 # (for smtlib format)
 hide_non_deltas = True
+
+# bounds of variables that are meant to be the maximum, extreme or top_k value of a
+# set of inputs variables are further tightened
+use_context_groups = False
