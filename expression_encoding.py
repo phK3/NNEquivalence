@@ -5,10 +5,8 @@ from flags_constants import epsilon
 from keras_loader import KerasLoader
 import gurobipy as grb
 import datetime
+import flags_constants as fc
 
-# set this flag to only print bounds for deltas and inputs
-# (for smtlib format)
-hide_non_deltas = True
 use_context_groups = False
 use_eps_maximum = False
 
@@ -841,7 +839,7 @@ def print_to_smtlib(vars, constraints):
         decls += '\n' + var.get_smtlib_decl()
         bound = var.get_smtlib_bounds()
         if not bound == '':
-            if hide_non_deltas:
+            if fc.hide_non_deltas:
                 # TODO: find better way to exclude non-delta and input bounds
                 # independent of string representation
                 if is_input_or_delta(var.to_smtlib()):
