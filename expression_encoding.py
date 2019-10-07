@@ -1,7 +1,6 @@
 
 from expression import Variable, Linear, Relu, Max, Multiplication, Constant, Sum, Neg, One_hot, Greater_Zero, \
     Geq, BinMult, Gt_Int, Impl, IndicatorToggle, TopKGroup, ExtremeGroup
-from flags_constants import epsilon
 from keras_loader import KerasLoader
 import gurobipy as grb
 import datetime
@@ -239,7 +238,7 @@ def encode_sort_one_hot_layer(prev_neurons, layerIndex, netPrefix, mode):
     oh_constraint = Linear(Sum(one_hot_vec), Constant(1, netPrefix, layerIndex, 0))
 
     if fc.use_eps_maximum:
-        eps = Constant(epsilon, netPrefix, layerIndex, 0)
+        eps = Constant(fc.epsilon, netPrefix, layerIndex, 0)
         order_constrs = [Impl(pi, 0, Sum([neuron, eps]), top) for neuron, pi in zip(prev_neurons, one_hot_vec)]
         pretty_print([], order_constrs)
     else:

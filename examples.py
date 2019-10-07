@@ -1,4 +1,3 @@
-import flags_constants
 from expression_encoding import encodeNN, encode_maxpool_layer, encode_inputs, \
     pretty_print, interval_arithmetic, encode_linear_layer, encode_relu_layer, \
     encode_from_file, encode_one_hot, encode_equivalence, print_to_smtlib, encode_ranking_layer
@@ -285,8 +284,8 @@ def create_cancer_simple_lin_geq_zero2():
 
 
 def prepare_layer_wise_equivalence(path1, path2, input_los, input_his, mode):
-    old_eps = flags_constants.epsilon
-    flags_constants.epsilon = 1e-4
+    old_eps = fc.epsilon
+    fc.epsilon = 1e-4
     fc.use_grb_native = False
 
     enc = Encoder()
