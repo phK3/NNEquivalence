@@ -459,7 +459,7 @@ def run_evaluation():
 
 
     '''
-    expression.use_asymmetric_bounds = True
+    fc.use_asymmetric_bounds = True
     for k in range(5, 10):
         name = 'mnist_vs_p{per}_retrain_one_hot_partial_top_3.txt'.format(per=10 * k)
         sys.stdout = open('Evaluation/' + name, 'w')

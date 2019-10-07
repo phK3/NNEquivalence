@@ -4,8 +4,6 @@ import numbers
 import flags_constants as fc
 import gurobipy as grb
 
-use_asymmetric_bounds = False
-
 # 999999 1e-8
 default_bound = 999999
 epsilon = 1e-8
@@ -383,7 +381,7 @@ class Relu(Expression):
             ret_constr = model.addConstr(self.output.to_gurobi(model) == 0, name=c_name)
         elif fc.use_grb_native:
             ret_constr = model.addConstr(self.output.to_gurobi(model) == grb.max_(self.input.to_gurobi(model), 0), name=c_name)
-        elif use_asymmetric_bounds:
+        elif fc.use_asymmetric_bounds:
             model.addConstr(self.output.to_gurobi(model) >= 0, name=c_name + '_a')
             model.addConstr(self.output.to_gurobi(model) >= self.input.to_gurobi(model), name=c_name + '_b')
 
