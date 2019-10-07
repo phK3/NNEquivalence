@@ -69,10 +69,10 @@ class Expression(ABC):
         return self.lo
 
     def getLo_exclusive(self):
-        return self.lo - epsilon
+        return self.lo - fc.epsilon
 
     def getHi_exclusive(self):
-        return self.hi + epsilon
+        return self.hi + fc.epsilon
 
     @abstractmethod
     def tighten_interval(self):
@@ -521,7 +521,7 @@ class One_hot(Expression):
 
         # convert to greater than
         # normal (hi * output) - eps >= ... doesn't work
-        c1 = model.addConstr(h_i * (self.output.to_gurobi(model) - epsilon) >= self.input.to_gurobi(model), name=c_name + '_a')
+        c1 = model.addConstr(h_i * (self.output.to_gurobi(model) - fc.epsilon) >= self.input.to_gurobi(model), name=c_name + '_a')
         c2 = model.addConstr(self.input.to_gurobi(model) >= (1 - self.output.to_gurobi(model)) * l_i, name=c_name + '_b')
 
         return c1, c2
@@ -577,7 +577,7 @@ class Greater_Zero(Expression):
         c1 = model.addConstr(self.lhs.to_gurobi(model) <= h * self.delta.to_gurobi(model), name=c_name + '_a')
         # convert to greater than
         # with epsilon otherwise, when lhs == 0, delta == 1 would also be ok, with epsilon forced to take 0
-        c2 = model.addConstr(self.lhs.to_gurobi(model) - epsilon >= (1 - self.delta.to_gurobi(model)) * l, name=c_name + '_b')
+        c2 = model.addConstr(self.lhs.to_gurobi(model) - fc.epsilon >= (1 - self.delta.to_gurobi(model)) * l, name=c_name + '_b')
 
         return c1, c2
 
