@@ -1,8 +1,8 @@
 from expression_encoding import encodeNN, encode_maxpool_layer, encode_inputs, \
     pretty_print, interval_arithmetic, encode_linear_layer, encode_relu_layer, \
-    encode_from_file, encode_one_hot, encode_equivalence, print_to_smtlib, encode_ranking_layer
+    encode_from_file, encode_one_hot, encode_equivalence, print_to_smtlib, encode_ranking_layer, create_gurobi_model
 from performance import Encoder
-import expression
+from expression import Constant, Variable, Abs
 import flags_constants as fc
 from keras_loader import KerasLoader
 import subprocess
@@ -298,6 +298,23 @@ def prepare_layer_wise_equivalence(path1, path2, input_los, input_his, mode):
         interval_arithmetic(enc.get_constraints())
 
     return enc
+
+
+def test_abs(number):
+    input = Constant(number, '', 0, 0)
+    delta = Variable(0, 0, '', 'd', 'Int')
+    delta.update_bounds(0, 1)
+    output = Variable(0, 0, '', 'a')
+
+    vars = [delta, output]
+    constrs = [Abs(input, output, delta)]
+
+    model = create_gurobi_model(vars, constrs)
+    model.optimize()
+
+    res = model.getVarByName('a_0_0').X
+
+    return vars, constrs, res
 
 
 def example_runner():

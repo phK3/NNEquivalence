@@ -4,6 +4,8 @@ import numbers
 import flags_constants as fc
 import gurobipy as grb
 
+
+
 def ffp(x):
     if x < 0:
         s = format_float_positional(-x, trim='-')
@@ -918,6 +920,84 @@ class IndicatorToggle(Expression):
             reps.append('{d} = {c} --> {left} = {right}'.format(d=str(ind), c=str(1 - self.constant), left=str(diff),
                                                                 right=str(self.terms_lo)))
         return '\n'.join(reps)
+
+
+class Abs(Expression):
+
+    def __init__(self, input, output, delta):
+        net, layer, row = output.getIndex()
+        super(Abs, self).__init__(net, layer, row)
+        self.output = output
+        self.output.setLo(0)
+        self.input = input
+        self.lo = 0
+        self.hi = fc.default_bound
+        self.delta = delta
+        self.delta.setLo(0)
+        self.delta.setHi(1)
+
+    def tighten_interval(self):
+        self.input.tighten_interval()
+        h = self.input.getHi()
+        l = self.input.getLo()
+
+        if h <= 0:
+            # input less than 0 -> delta=0
+            self.update_bounds(-h, -l)
+            self.output.update_bounds(-h, -l)
+            self.delta.update_bounds(0,0)
+        elif l > 0:
+            # input greater than 0 -> delta=1
+            self.update_bounds(l, h)
+            self.output.update_bounds(l, h)
+            self.delta.update_bounds(1,1)
+        else:
+            # don't know if inputs is greater or less than 0
+            new_hi = max(abs(h), abs(l))
+            self.update_bounds(0, new_hi)
+            self.output.update_bounds(0, new_hi)
+
+    def to_smtlib(self):
+        # maybe better with asymmetric bounds
+        m = 2*max(abs(self.input.getLo()), abs(self.input.getHi()))
+
+        dm = Multiplication(Constant(m, self.net, self.layer, self.row), self.delta)
+        inOneMinusDM = Sum([self.input, Constant(m, self.net, self.layer, self.row), Neg(dm)])
+
+        enc  = makeGeq(self.output.to_smtlib(), Neg(self.input).to_smtlib())
+        enc += '\n' + makeGeq(self.output.to_smtlib(), self.input.to_smtlib())
+        enc += '\n' + makeLeq(self.output.to_smtlib(), Sum([Neg(self.input), Neg(dm)]).to_smtlib())
+        enc += '\n' + makeLeq(self.output.to_smtlib(), inOneMinusDM.to_smtlib())
+
+        return enc
+
+    def to_gurobi(self, model):
+        c_name = 'Abs_{n}_{layer}_{row}'.format(n=self.net, layer=self.layer, row=self.row)
+        ret_constr = None
+
+        if self.input.getLo() >= 0:
+            # input is positive
+            ret_constr = model.addConstr(self.output.to_gurobi(model) == self.input.to_gurobi(model), name=c_name)
+        elif self.input.getHi() <= 0:
+            # inputs is negative
+            ret_constr = model.addConstr(self.output.to_gurobi(model) == - self.input.to_gurobi(model), name=c_name)
+        elif fc.use_grb_native:
+            ret_constr = model.addConstr(self.output.to_gurobi(model) == grb.abs_(self.input.to_gurobi(model)), name=c_name)
+        else:
+            bigM = 2*max(abs(self.input.getLo()), abs(self.input.getHi()))
+            model.addConstr(self.output.to_gurobi(model) >= - self.input.to_gurobi(model), name=c_name + '_a')
+            model.addConstr(self.output.to_gurobi(model) >= self.input.to_gurobi(model), name=c_name + '_b')
+            model.addConstr(self.output.to_gurobi(model)
+                            <= - self.input.to_gurobi(model) + self.delta.to_gurobi(model) * bigM, name=c_name + '_c')
+            ret_constr = model.addConstr(self.output.to_gurobi(model)
+                            <= self.input.to_gurobi(model) + (1 - self.delta.to_gurobi(model)) * bigM, name=c_name + '_c')
+
+        return ret_constr
+
+
+    def __repr__(self):
+        return str(self.output) + ' =  |' + str(self.input) + '|'
+
 
 
 class TopKGroup(Expression):
