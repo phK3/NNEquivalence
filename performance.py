@@ -1,7 +1,8 @@
 
 from abc import ABC, abstractmethod
-from expression import Expression, Variable, Linear, Sum, Neg, Constant, Geq
+from expression import Expression, Variable, Linear, Sum, Neg, Constant, Geq, Abs
 from keras_loader import KerasLoader
+import flags_constants as fc
 from expression_encoding import encode_equivalence, interval_arithmetic, hasLinear, encode_linear_layer, \
     encode_relu_layer, encode_one_hot, encode_ranking_layer, encode_equivalence_layer, create_gurobi_model, pretty_print, \
     encode_partial_layer, encode_sort_one_hot_layer
@@ -67,8 +68,9 @@ class InputLayer(Layer):
         self.invars = invars
         self.constraints = []
 
-    def add_input_constraints(self, in_constraints):
+    def add_input_constraints(self, in_constraints, additional_vars):
         self.constraints += in_constraints
+        self.intervars += additional_vars
 
     def get_optimization_vars(self):
         return []
@@ -77,7 +79,7 @@ class InputLayer(Layer):
         return self.constraints
 
     def get_all_vars(self):
-        return self.invars
+        return self.invars + self.intervars
 
 
 class ReLULayer(Layer):
@@ -153,18 +155,29 @@ class Encoder:
                 centered_inputs.append(Sum([invars[i], Neg(Constant(center[i], netPrefix, 0, i))]))
 
             ineqs = []
-            for i in range(2 ** dim):
-                terms = []
-                for j in range(dim):
-                    neg = (i // 2 ** j) % 2
-                    if neg > 0:
-                        terms.append(Neg(centered_inputs[j]))
-                    else:
-                        terms.append(centered_inputs[j])
+            additional_vars = []
 
-                ineqs.append(Geq(r, Sum(terms)))
+            if fc.manhattan_use_absolute_value:
+                deltas = [Variable(0, i, netPrefix, 'd', 'Int') for i in range(dim)]
+                abs_outs = [Variable(0, i, netPrefix, 'abs') for i in range(dim)]
+                ineqs.append([Abs(ci, aout, d) for ci, aout, d in zip(centered_inputs, abs_outs, deltas)])
+                ineqs.append(Geq(r, Sum(abs_outs)))
 
-            self.input_layer.add_input_constraints(ineqs)
+                additional_vars.append(deltas)
+                additional_vars.append(abs_outs)
+            else:
+                for i in range(2 ** dim):
+                    terms = []
+                    for j in range(dim):
+                        neg = (i // 2 ** j) % 2
+                        if neg > 0:
+                            terms.append(Neg(centered_inputs[j]))
+                        else:
+                            terms.append(centered_inputs[j])
+
+                    ineqs.append(Geq(r, Sum(terms)))
+
+            self.input_layer.add_input_constraints(ineqs, additional_vars)
 
     def encode_layers(self, input_vars, layers, net_prefix, output_mode=('matrix', -1)):
         # outputs modes to specify what is output of ranking layer:

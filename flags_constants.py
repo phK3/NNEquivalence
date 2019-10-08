@@ -29,3 +29,6 @@ use_context_groups = False
 # counterexample would be found for top_1 equivalence, because in reality, for both NNs the max could have
 # been x2
 use_eps_maximum = False
+
+# Whether to use absolute value in encoding of manhattan distance or directly use (2**(n+1)) inequalities
+manhattan_use_absolute_value = False
