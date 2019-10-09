@@ -5,6 +5,9 @@ from expression_encoding import pretty_print, interval_arithmetic, create_gurobi
 import gurobipy as grb
 import sys
 import flags_constants as fc
+import numpy as np
+import pickle
+from math import factorial
 from timeit import default_timer as timer
 
 examples = 'ExampleNNs/'
@@ -279,6 +282,108 @@ def evaluate_branching(limit_minutes):
         print('mnist_eqiv_branch_s={set}_delta={d}_pi={p} evaluated, time={t}'.format(set=s, d=delta, p=pi,t=now - teststart))
 
     return models
+
+
+def encode_equiv_radius(path1, path2, input_los, input_his, equiv_mode, center, radius, metric, name):
+    # accepts one_hot_partial_top_k, one_hot_diff as mode
+
+    fc.use_asymmetric_bounds = True
+    fc.use_context_groups = True
+    fc.use_grb_native = False
+    fc.use_eps_maximum = True
+    fc.manhattan_use_absolute_value = True
+    fc.epsilon = 1e-4
+
+    enc = Encoder()
+    enc.encode_equivalence_from_file(path1, path2, input_los, input_his, equiv_mode, equiv_mode)
+    enc.add_input_radius(center, radius, metric)
+
+    interval_arithmetic(enc.get_constraints())
+    for i in range(1, 3):
+        enc.optimize_layer(enc.a_layers, i)
+        enc.optimize_layer(enc.b_layers, i)
+        interval_arithmetic(enc.get_constraints())
+
+    if equiv_mode == 'one_hot_diff':
+        k = 0
+    else:
+        k = int(equiv_mode.split('_')[-1])
+
+    model = create_gurobi_model(enc.get_vars(), enc.get_constraints(), name)
+    diff = model.getVarByName('E_diff_0_{num}'.format(num=k))
+    model.setObjective(diff, grb.GRB.MAXIMIZE)
+    model.setParam('TimeLimit', 30 * 60)
+
+    # maximum for diff should be greater 0
+    return model
+
+
+def run_radius_evaluation():
+    path70 = examples + 'mnist8x8_70p_retrain.h5'
+    path80 = examples + 'mnist8x8_80p_retrain.h5'
+    mode = 'one_hot_partial_top_3'
+    inl = [0 for i in range(64)]
+    inh = [16 for i in range(64)]
+
+    # centroid of 0-cluster, when clustering training data using manhattan metric
+    center = np.array([[0, 0, 4, 13, 11, 2, 0, 0],
+                       [0, 1, 12, 13, 12, 10, 0, 0],
+                       [0, 3, 14, 4, 3, 12, 3, 0],
+                       [0, 5, 12, 1, 0, 9, 6, 0],
+                       [0, 5, 11, 0, 0, 8, 7, 0],
+                       [0, 3, 13, 1, 1, 11, 6, 0],
+                       [0, 0, 13, 10, 10, 13, 2, 0],
+                       [0, 0, 4, 13, 13, 5, 0, 0]])
+
+    center = center.reshape(-1)
+
+    # average manhattan distance to centroid of all training images that were assigned to the 0 cluster
+    avg_dist = 98.90813648293964
+
+    dims = 64
+    steps = [1/40, 1/20, 1/10, 1/5, 1/3, 1/2]
+
+    models = []
+    ins = []
+
+    stdout = sys.stdout
+    teststart = timer()
+    for s in steps:
+        for i in range(2):
+            if i % 2 == 0:
+                # manhattan distance
+                r = s * avg_dist
+                metric = 'manhattan'
+
+            else:
+                # chebyshev distance
+                # choose radius, s.t. manhattan ball and chebyshev ball have same volume
+                r = ((s * avg_dist)**dims / factorial(dims))**(1/dims)
+                metric = 'chebyshev'
+
+            name = 'mnist_70_vs_80_{metric}_0_step_{s}'.format(metric=metric, s=s)
+
+            sys.stdout = open('Evaluation/' + name + '.txt', 'w')
+
+            model = encode_equiv_radius(path70, path80, inl, inh, mode, center, r, metric, name)
+            models.append(model)
+            model.optimize()
+
+            sys.stdout = stdout
+            inputs = [model.getVarByName('i_0_{idx}'.format(idx=j)).X for j in range(64)]
+            ins.append(inputs)
+
+            fname = name + '.pickle'
+            with open(fname, 'wb') as fp:
+                pickle.dump(inputs, fp)
+
+            now = timer()
+            print('### {name} finished. Total time elapsed: {t}'.format(name=name, t=now - teststart))
+            print('    (val, bound) = ({v}, {bd})'.format(v=model.ObjVal, bd=model.ObjBound))
+            print('    ins = {i}'.format(i=str(inputs)))
+
+    return models, ins
+
 
 def run_evaluation():
     fc.use_grb_native = False
