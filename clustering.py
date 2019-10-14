@@ -1,6 +1,8 @@
 import numpy as np
 from abc import ABC, abstractmethod
 from sklearn.cluster import KMeans
+from scipy.spatial import distance
+from expression_encoding import flatten
 from k_means_scipy_distances import kmeanssample
 
 
@@ -8,9 +10,10 @@ class ClusterTree:
     def __init__(self, center):
         self.center = center
         self.children = []
-        self.size = 1
-        self.elements = -1
-        self.avg_dist = -1
+        self.size = 1 # no of nodes in this clustertree
+        self.elements = -1 # no of elements in cluster
+        self.avg_dist = -1 # avg distance of elements to cluster center
+        self.distance = -1 # distance of cluster to nearest other cluster
 
     def set_num_elements(self, elements):
         self.elements = elements
@@ -20,6 +23,19 @@ class ClusterTree:
 
     def density(self):
         return self.elements / self.avg_dist
+
+    def compute_cluster_distance(self, centers, metric='euclidean'):
+        dists = distance.cdist(np.array([self.center]), np.array(centers), metric=metric).flatten()
+        # return 2nd smallest element, smallest element should always be 0, as it is distance to self
+        if len(dists) > 2:
+            self.distance = np.partition(dists, 2)[1]
+        else:
+            self.distance = max(dists)
+
+        for ch in self.children:
+            ch.compute_cluster_distance([c.center for c in self.children], metric=metric)
+
+        return self.distance
 
     def add_children(self, centers):
         self.children += [ClusterTree(c) for c in centers]
@@ -133,8 +149,9 @@ class CustomKMeans(KMeansClassifier):
 
 class RecursiveClustering:
 
-    def __init__(self, classifier_type='SciKit'):
+    def __init__(self, classifier_type='SciKit', metric='euclidean'):
         self.classifier_type = classifier_type
+        self.metric = metric
 
     def recursive_cluster(self, data, labels, purity, verbose=False, depth=0):
         num_labels = np.unique(labels.values).size
@@ -142,7 +159,10 @@ class RecursiveClustering:
         if self.classifier_type == 'SciKit':
             classifier = ScikitKMeans(num_labels)
         elif self.classifier_type == 'Custom':
-            classifier = CustomKMeans(num_labels, len(data) / 40)
+            if not self.metric in ['chebyshev', 'cityblock', 'euclidean']:
+                raise ValueError('metric {m} is not supported by CustomKMeans'.format(m=self.metric))
+
+            classifier = CustomKMeans(num_labels, len(data) // 40, metric=self.metric)
         else:
             classifier = None
         #classifier = self.classifier(num_labels)
