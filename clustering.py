@@ -37,14 +37,18 @@ class ClusterTree:
         if not self.children:
             return self
         else:
-            return [c.getLeaves() for c in self.children]
+            return [c.get_leaves() for c in self.children]
 
-    def print_cluster_tree(self, depth):
+    def print_cluster_tree(self, depth, verbose=False):
+        node_string = 'center: {center}'.format(center=str(self.center))
+        if verbose:
+            node_string += ' density = {d}'.format(d=self.density())
+
         if not self.children:
-            return '-' * depth + 'center: {center}'.format(center=str(self.center))
+            return '-' * depth + node_string
         else:
-            ch_string = '\n'.join([child.print_cluster_tree(depth + 1) for child in self.children])
-            return '-' * depth + 'center: {center}\n{ch}'.format(center=str(self.center), ch=ch_string)
+            ch_string = '\n'.join([child.print_cluster_tree(depth + 1, verbose) for child in self.children])
+            return '-' * depth + node_string + '\n{ch}'.format(ch=ch_string)
 
     def __repr__(self):
         return self.print_cluster_tree(0)
@@ -82,7 +86,7 @@ class ScikitKMeans(KMeansClassifier):
         self.data = None
 
     def fit_predict(self, data):
-        self.data = data
+        self.data = data.to_numpy()
         self.xtoc = self.classifier.fit_predict(self.data)
         self.centers = self.classifier.cluster_centers_
 
@@ -91,9 +95,7 @@ class ScikitKMeans(KMeansClassifier):
     def get_distances(self):
         # don't calculate distances in fit_predict(), as maybe we don't need them
         # and it is faster without computing them
-        if not self.distances:
-            self.distances = min([np.linalg.norm(c - d) for d in self.data for c in self.centers])
-
+        self.distances = [min([np.linalg.norm(c - d) for c in self.centers]) for d in self.data]
         return self.distances
 
     def get_centers(self):
@@ -131,16 +133,24 @@ class CustomKMeans(KMeansClassifier):
 
 class RecursiveClustering:
 
-    def __init__(self, classifier):
-        self.classifier = classifier
+    def __init__(self, classifier_type='SciKit'):
+        self.classifier_type = classifier_type
 
     def recursive_cluster(self, data, labels, purity, verbose=False, depth=0):
         num_labels = np.unique(labels.values).size
-        self.classifier.set_num_clusters(num_labels)
 
-        clusters = self.classifier.fit_predict(data)
-        centers = self.classifier.get_centers()
-        distances = self.classifier.get_distances()
+        if self.classifier_type == 'SciKit':
+            classifier = ScikitKMeans(num_labels)
+        elif self.classifier_type == 'Custom':
+            classifier = CustomKMeans(num_labels, len(data) / 40)
+        else:
+            classifier = None
+        #classifier = self.classifier(num_labels)
+        #self.classifier.set_num_clusters(num_labels)
+
+        clusters = classifier.fit_predict(data)
+        centers = classifier.get_centers()
+        distances = np.array(classifier.get_distances())
 
         ct = [ClusterTree(c) for c in centers]
 
