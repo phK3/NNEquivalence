@@ -152,6 +152,15 @@ class RecursiveClustering:
     def __init__(self, classifier_type='SciKit', metric='euclidean'):
         self.classifier_type = classifier_type
         self.metric = metric
+        self.cluster_trees = None
+
+    def calculate_cluster_distances(self):
+        for c in self.cluster_trees:
+            centers = [cl.center for cl in self.cluster_trees if not cl == c]
+            c.compute_cluster_distance(centers)
+
+    def get_leaves(self):
+        return list(flatten([c.get_leaves() for c in self.cluster_trees]))
 
     def recursive_cluster(self, data, labels, purity, verbose=False, depth=0):
         num_labels = np.unique(labels.values).size
@@ -190,5 +199,8 @@ class RecursiveClustering:
             if current_purity < purity:
                 children = self.recursive_cluster(data[mask], labels[mask], purity, verbose=verbose, depth=depth + 1)
                 ct[i].add_child_clusters(children)
+
+        if depth == 0:
+            self.cluster_trees = ct
 
         return ct
