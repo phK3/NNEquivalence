@@ -200,6 +200,20 @@ class Encoder:
         return bound
 
     def add_convex_hull_restriction(self, cluster_trees, center, epsilon=0.5, bounds=None):
+        '''
+        Adds convex hull constraints to the input of the NNs.
+
+        Inputs need to be (hierarchically) clustered. The bounds are then calculated as the
+        boundaries of the voronoi region of the current cluster-center
+        :param cluster_trees: List of cluster-trees
+        :param center: The cluster-center that corresponds to the input region that about to be inpspected
+        :param epsilon: Ratio of how close to the convex hull the boundaries should be.
+            points up until epsilon / 2 of the distance to the next cluster centers are feasible
+            for epsilon = 1, points on the boundary of the convex hull are feasible,
+            for epsilon = 0, only the center is feasible
+        :param bounds: existing bounds on the input
+        :return: epsilon-bounds of the voronoi region around the cluster-center
+        '''
         if bounds is None:
             bounds = []
 
