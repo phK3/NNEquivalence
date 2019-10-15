@@ -1,11 +1,12 @@
 
 from abc import ABC, abstractmethod
-from expression import Expression, Variable, Linear, Sum, Neg, Constant, Geq, Abs
+from expression import Expression, Variable, Linear, Sum, Neg, Constant, Geq, Abs, Multiplication
 from keras_loader import KerasLoader
 import flags_constants as fc
+import numpy as np
 from expression_encoding import encode_equivalence, interval_arithmetic, hasLinear, encode_linear_layer, \
     encode_relu_layer, encode_one_hot, encode_ranking_layer, encode_equivalence_layer, create_gurobi_model, pretty_print, \
-    encode_partial_layer, encode_sort_one_hot_layer
+    encode_partial_layer, encode_sort_one_hot_layer, flatten
 import gurobipy as grb
 
 
@@ -178,6 +179,47 @@ class Encoder:
                     ineqs.append(Geq(r, Sum(terms)))
 
             self.input_layer.add_input_constraints(ineqs, additional_vars)
+
+    def calc_cluster_boundary(self, c1, c2, epsilon):
+        c1 = np.array(c1)
+        c2 = np.array(c2)
+
+        factors = c2 - c1
+        constant = (epsilon / 2) * np.linalg.norm(c2 - c1)**2
+        constant += (np.linalg.norm(c1)**2 - np.linalg.norm(c2)**2) / 2
+
+        invars = self.input_layer.get_outvars()
+        netPrefix, _, _ = invars[0].getIndex()
+        zero = Constant(0, netPrefix, 0, 0)
+
+        terms = [Multiplication(Constant(factor, netPrefix, 0, 0), i) for factor, i in zip(factors, invars)]
+        terms.append(Constant(constant, netPrefix, 0, 0))
+
+        bound = [Geq(zero, Sum(terms))]
+
+        return bound
+
+    def add_convex_hull_restriction(self, cluster_trees, center, epsilon=0.5, bounds=None):
+        if bounds is None:
+            bounds = []
+
+        center = np.array(center)
+
+        dists = [np.linalg.norm(center - c.center) for c in cluster_trees]
+        min_i = np.argmin(dists)
+        cluster = cluster_trees[min_i]
+
+        bounds += [self.calc_cluster_boundary(cluster.center, c2.center, epsilon)
+                   for c2 in cluster_trees if not np.array_equal(c2.center, cluster.center)]
+
+        print(bounds)
+
+        if not np.array_equal(cluster.center, center):
+            bounds += self.add_convex_hull_restriction(cluster.get_children(), center, epsilon, bounds)
+            return bounds
+        else:
+            self.input_layer.add_input_constraints(bounds, [])
+            return bounds
 
     def encode_layers(self, input_vars, layers, net_prefix, output_mode=('matrix', -1)):
         # outputs modes to specify what is output of ranking layer:
