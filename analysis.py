@@ -1,6 +1,8 @@
 from expression import Expression, Variable, ffp
 from expression_encoding import flatten, encode_NN_from_file, interval_arithmetic
 import gurobipy as grb
+import numpy as np
+import matplotlib.pyplot as plt
 import itertools as itt
 import texttable as tt
 import pandas as pd
@@ -87,6 +89,24 @@ def compare_outputs(nn1, nn2, ins, sort=False):
     s = tab.draw()
     print(s)
 
+
+def plot_diffmap(in1, in2, vmin, vmax):
+    diff = np.subtract(in1, in2)
+
+    fig = plt.figure()
+    s = fig.add_subplot(1, 1, 1, xlabel='x', ylabel='y')
+    im = s.imshow(diff, interpolation='nearest', cmap='bwr', vmin=vmin, vmax=vmax)
+    fig.colorbar(im)
+    return fig
+
+
+def plot_grb_solution(model, xdim, ydim):
+    solution = model.getVarByName('i_0_{idx}'.format(idx=j) for j in range(xdim * ydim))
+
+    fig = plt.figure()
+    s = fig.add_subplot(1, 1, 1, xlabel='x', ylabel='y')
+    im = s.imshow(np.array(solution).reshape(xdim, ydim), interpolation='nearest', cmap=plt.cm.binary)
+    return fig
 
 def separate_logs(logfile):
     logs = []
