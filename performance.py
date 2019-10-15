@@ -200,7 +200,7 @@ class Encoder:
         return bound
 
     def add_convex_hull_restriction(self, cluster_trees, center, epsilon=0.5, bounds=None):
-        '''
+        """
         Adds convex hull constraints to the input of the NNs.
 
         Inputs need to be (hierarchically) clustered. The bounds are then calculated as the
@@ -213,7 +213,8 @@ class Encoder:
             for epsilon = 0, only the center is feasible
         :param bounds: existing bounds on the input
         :return: epsilon-bounds of the voronoi region around the cluster-center
-        '''
+        """
+
         if bounds is None:
             bounds = []
 
@@ -226,13 +227,17 @@ class Encoder:
         bounds += [self.calc_cluster_boundary(cluster.center, c2.center, epsilon)
                    for c2 in cluster_trees if not np.array_equal(c2.center, cluster.center)]
 
-        print(bounds)
-
         if not np.array_equal(cluster.center, center):
             bounds += self.add_convex_hull_restriction(cluster.get_children(), center, epsilon, bounds)
             return bounds
         else:
             self.input_layer.add_input_constraints(bounds, [])
+
+            in_layer_vars = self.input_layer.get_all_vars()
+            for v in self.input_layer.get_outvars():
+                lb, ub = self.optimize_variable(v, in_layer_vars, bounds)
+                v.update_bounds(lb, ub)
+
             return bounds
 
     def encode_layers(self, input_vars, layers, net_prefix, output_mode=('matrix', -1)):
