@@ -101,7 +101,7 @@ def plot_diffmap(in1, in2, vmin, vmax):
 
 
 def plot_grb_solution(model, xdim, ydim):
-    solution = model.getVarByName('i_0_{idx}'.format(idx=j) for j in range(xdim * ydim))
+    solution = [model.getVarByName('i_0_{idx}'.format(idx=j)).X for j in range(xdim * ydim)]
 
     fig = plt.figure()
     s = fig.add_subplot(1, 1, 1, xlabel='x', ylabel='y')
