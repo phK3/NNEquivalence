@@ -43,7 +43,9 @@ class KerasLoader(NNLoader):
             return self.Layer(layer_type, name, units, activation, inputs, weights)
 
         for layer in model_config['config']['layers']:
-            self.layers.append(create_layer(layer))
+            # input layer is handled in first real layer via batch_input_shape
+            if not layer['class_name'] == 'InputLayer':
+                self.layers.append(create_layer(layer))
 
 
         model_weights_dict = self.f['model_weights']
