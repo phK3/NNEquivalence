@@ -379,6 +379,7 @@ def run_radius_evaluation():
 
             now = timer()
             print('### {name} finished. Total time elapsed: {t}'.format(name=name, t=now - teststart))
+            print('    radius = {r}'.format(r=r))
             print('    (val, bound) = ({v}, {bd})'.format(v=model.ObjVal, bd=model.ObjBound))
             print('    ins = {i}'.format(i=str(inputs)))
 
