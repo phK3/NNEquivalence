@@ -386,6 +386,89 @@ def run_radius_evaluation():
     return models, ins
 
 
+def run_hierarchical_cluster_evaluation():
+    path70 = examples + 'mnist8x8_70p_retrain.h5'
+    path80 = examples + 'mnist8x8_80p_retrain.h5'
+    mode = 'one_hot_partial_top_3'
+    inl = [0 for i in range(64)]
+    inh = [16 for i in range(64)]
+
+    # 10 most dense clusters in hierarchical manhattan clustering of mnist8x8 training data
+    clusters_to_verify = pickle.load(open("to_verify.pickle", "rb"))
+
+    dims = 64
+    steps = [1/20, 1/10, 1/5]
+
+    models = []
+    ins = []
+
+    stdout = sys.stdout
+    for s in steps:
+        for clno, cluster in enumerate(clusters_to_verify):
+            teststart = timer()
+
+            # manhattan distance
+            r = s * cluster.distance
+            metric = 'manhattan'
+
+            name = 'mnist_70_vs_80_manhattan_cluster_{cl}_step_{s}'.format(cl=clno, s=s)
+
+            sys.stdout = open('Evaluation/' + name + '.txt', 'w')
+
+            model = encode_equiv_radius(path70, path80, inl, inh, mode, cluster.center, r, metric, name)
+            # stop optimization, if counterexample with at least 10 difference is found
+            model.setParam('BestObjStop', 10.0)
+            models.append(model)
+            model.optimize()
+
+            sys.stdout = stdout
+            inputs = [model.getVarByName('i_0_{idx}'.format(idx=j)).X for j in range(64)]
+            ins.append(inputs)
+
+            fname = name + '.pickle'
+            with open(fname, 'wb') as fp:
+                pickle.dump(inputs, fp)
+
+            now = timer()
+            print('### {name} finished. Total time elapsed: {t}'.format(name=name, t=now - teststart))
+            print('    radius = {r}'.format(r=r))
+            print('    (val, bound) = ({v}, {bd})'.format(v=model.ObjVal, bd=model.ObjBound))
+            print('    ins = {i}'.format(i=str(inputs)))
+
+    return models, ins
+
+
+def run_student_evaluation():
+    fc.use_asymmetric_bounds = True
+    fc.use_context_groups = True
+    fc.use_grb_native = False
+    fc.use_eps_maximum = True
+    fc.manhattan_use_absolute_value = True
+    fc.epsilon = 1e-4
+
+    path = examples + 'mnist8x8_50p_student.h5'
+    mode = 'one_hot_partial_top_3'
+    inl = [0 for i in range(64)]
+    inh = [16 for i in range(64)]
+
+    stdout = sys.stdout
+    teststart = timer()
+
+    name = 'mnist8x8_50p_student_equiv'
+    sys.stdout = open('Evaluation/' + name + '.txt', 'w')
+
+    model = encode_equiv(path, path, inl, inh, mode, name)
+    model.setParam('TimeLimit', 60*60)
+    model.setParam('MIPFocus', 3)
+    model.update()
+    model.optimize()
+
+    sys.stdout = stdout
+    now = timer()
+    print('### {name} finished. Total time elapsed: {t}'.format(name=name, t=now - teststart))
+
+    return model
+
 def run_evaluation():
     fc.use_grb_native = False
 
