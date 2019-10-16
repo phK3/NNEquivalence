@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from sklearn.cluster import KMeans
 from scipy.spatial import distance
 from expression_encoding import flatten
-from k_means_scipy_distances import kmeanssample
+from k_means_scipy_distances import kmeanssample, kmeans
 
 
 class ClusterTree:
@@ -22,7 +22,10 @@ class ClusterTree:
         self.avg_dist = avg_dist
 
     def density(self):
-        return self.elements / self.avg_dist
+        if self.avg_dist == 0:
+            return np.inf
+        else:
+            return self.elements / self.avg_dist
 
     def compute_cluster_distance(self, centers, metric='euclidean'):
         dists = distance.cdist(np.array([self.center]), np.array(centers), metric=metric).flatten()
@@ -157,7 +160,7 @@ class RecursiveClustering:
     def calculate_cluster_distances(self):
         for c in self.cluster_trees:
             centers = [cl.center for cl in self.cluster_trees if not cl == c]
-            c.compute_cluster_distance(centers)
+            c.compute_cluster_distance(centers, metric=self.metric)
 
     def get_leaves(self):
         return list(flatten([c.get_leaves() for c in self.cluster_trees]))
@@ -171,7 +174,10 @@ class RecursiveClustering:
             if not self.metric in ['chebyshev', 'cityblock', 'euclidean']:
                 raise ValueError('metric {m} is not supported by CustomKMeans'.format(m=self.metric))
 
-            classifier = CustomKMeans(num_labels, len(data) // 40, metric=self.metric)
+            samplesize = len(data) // 40
+            if samplesize < 10 * num_labels:
+                samplesize = -1
+            classifier = CustomKMeans(nclusters=num_labels, kmsample=samplesize, metric=self.metric)
         else:
             classifier = None
         #classifier = self.classifier(num_labels)

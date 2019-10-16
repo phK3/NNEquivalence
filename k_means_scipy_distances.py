@@ -92,6 +92,13 @@ def kmeanssample(X, k, nsample=0, **kwargs):
     N, dim = X.shape
     if nsample == 0:
         nsample = max(2 * np.sqrt(N), 10 * k)
+
+    # added by myself, as setting nsample to max(...) leads to error for small X,
+    # s.t. sample size is bigger than the size of X itself
+    if nsample == -1:
+        Xsample = randomsample(X, int(k))
+        return kmeans(X, Xsample, **kwargs)
+
     Xsample = randomsample(X, int(nsample))
     pass1centres = randomsample(X, int(k))
     samplecentres = kmeans(Xsample, pass1centres, **kwargs)[0]
