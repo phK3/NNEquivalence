@@ -151,7 +151,8 @@ class Encoder:
         if metric == 'manhattan':
             centered_inputs = []
             netPrefix, _, _ = invars[0].getIndex()
-            r = Constant(radius, netPrefix, 0, 0)
+            # need float as somehow gurobi can't handle float64 as type
+            r = Constant(float(radius), netPrefix, 0, 0)
             for i in range(dim):
                 centered_inputs.append(Sum([invars[i], Neg(Constant(center[i], netPrefix, 0, i))]))
 
