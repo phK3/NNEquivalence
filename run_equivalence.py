@@ -386,9 +386,9 @@ def run_radius_evaluation():
     return models, ins
 
 
-def run_hierarchical_cluster_evaluation():
-    path70 = examples + 'mnist8x8_70p_retrain.h5'
-    path80 = examples + 'mnist8x8_80p_retrain.h5'
+def run_hierarchical_cluster_evaluation(path1='mnist8x8_70p_retrain.h5', path2='mnist8x8_80p_retrain.h5'):
+    path1 = examples + path1
+    path2 = examples + path2
     mode = 'one_hot_partial_top_3'
     inl = [0 for i in range(64)]
     inh = [16 for i in range(64)]
@@ -415,7 +415,7 @@ def run_hierarchical_cluster_evaluation():
 
             sys.stdout = open('Evaluation/' + name + '.txt', 'w')
 
-            model = encode_equiv_radius(path70, path80, inl, inh, mode, cluster.center, r, metric, name)
+            model = encode_equiv_radius(path1, path2, inl, inh, mode, cluster.center, r, metric, name)
             # stop optimization, if counterexample with at least 10 difference is found
             model.setParam('BestObjStop', 10.0)
             models.append(model)
