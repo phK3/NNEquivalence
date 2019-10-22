@@ -386,7 +386,7 @@ def run_radius_evaluation():
     return models, ins
 
 
-def run_hierarchical_cluster_evaluation(path1='mnist8x8_70p_retrain.h5', path2='mnist8x8_80p_retrain.h5'):
+def run_hierarchical_cluster_evaluation(testname, path1='mnist8x8_70p_retrain.h5', path2='mnist8x8_80p_retrain.h5'):
     path1 = examples + path1
     path2 = examples + path2
     mode = 'one_hot_partial_top_3'
@@ -411,7 +411,8 @@ def run_hierarchical_cluster_evaluation(path1='mnist8x8_70p_retrain.h5', path2='
             r = s * cluster.distance
             metric = 'manhattan'
 
-            name = 'mnist_70_vs_80_manhattan_cluster_{cl}_step_{s}'.format(cl=clno, s=s)
+            name = testname + 'manhattan_cluster_{cl}_step_{s}'.format(cl=clno, s=s)
+            #name = 'mnist_70_vs_80_manhattan_cluster_{cl}_step_{s}'.format(cl=clno, s=s)
 
             sys.stdout = open('Evaluation/' + name + '.txt', 'w')
 
