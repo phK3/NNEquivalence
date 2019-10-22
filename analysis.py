@@ -204,3 +204,38 @@ def get_table(logstring, res_name=''):
             table = table.append(pd.Series(fill_row_dict(columns), index=table.columns), ignore_index=True)
 
     return table
+
+
+def get_optimization_data_dict(logstring):
+    data_dict = {}
+    first_occurrence_var_types = True
+
+    for line in logstring.splitlines():
+        if line.startswith('Presolved:'):
+            data = line.split(' ')
+            data_dict['rows'] = int(data[1])
+            data_dict['columns'] = int(data[3])
+            data_dict['nonzeros'] = int(data[5])
+        elif line.startswith('Variable types:'):
+            data = line.split(' ')
+            if first_occurrence_var_types:
+                data_dict['raw_continuous'] = int(data[2])
+                data_dict['raw_integer'] = int(data[4])
+                # ignore leading '('
+                data_dict['raw_binary'] = int(data[6][1:])
+                first_occurrence_var_types = False
+            else:
+                data_dict['continuous'] = int(data[2])
+                data_dict['integer'] = int(data[4])
+                # ignore leading '('
+                data_dict['binary'] = int(data[6][1:])
+        elif line.startswith('Explored'):
+            data = line.split(' ')
+            data_dict['grbTime'] = float(data[7])
+        elif line.startswith('Best objective'):
+            data = line.split(' ')
+            # ignore trailing commata
+            data_dict['obj'] = float(data[2][:-1])
+            data_dict['bound'] = float(data[5][:-1])
+
+    return data_dict
