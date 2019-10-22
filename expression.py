@@ -686,7 +686,7 @@ class Geq(Expression):
         hrhs = self.rhs.getHi()
 
         if hrhs > hlhs:
-            self.rhs.update_bounds(hrhs, hlhs)
+            self.rhs.update_bounds(lrhs, hlhs)
 
         if lrhs > llhs:
             self.lhs.update_bounds(lrhs, hlhs)
