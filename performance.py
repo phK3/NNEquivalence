@@ -129,6 +129,11 @@ class Encoder:
         Constrains input values, s.t. they have to be within a circle around a specified center
          of specified radius according to a specified metric.
 
+         If radius_mode = 'variable' is chosen, the radius, for which the difference of the top-values is
+         positive (i.e. the NNs are not equivalent) is minimized.
+         -> For the found solutions of the radius there are counterexamples to equivalence
+         -> For the calculated bounds, the NNs are equivalent (at least within bound - eps they should be)
+
         :param center: The center of the circle
         :param radius: The radius of the circle if radius_mode = 'constant' or the upper bound on the radius variable,
             if radius_mode = 'variable'
