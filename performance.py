@@ -124,16 +124,50 @@ class Encoder:
         num_neurons = len(lower_bounds)
         return InputLayer(num_neurons, vars)
 
-    def add_input_radius(self, center, radius, metric='manhattan'):
+    def add_input_radius(self, center, radius, metric='manhattan', radius_mode='constant', radius_lo=0):
         '''
         Constrains input values, s.t. they have to be within a circle around a specified center
          of specified radius according to a specified metric.
 
         :param center: The center of the circle
-        :param radius: The radius of the circle
+        :param radius: The radius of the circle if radius_mode = 'constant' or the upper bound on the radius variable,
+            if radius_mode = 'variable'
         :param metric: either chebyshev OR manhattan is supported
+        :param radius_mode: 'constant' - the radius is a constant and the difference between two nn2
+            around the center with this radius can be optimized.
+            'variable' - the radius is a variable and the radius, for which two nns are equivalent can be optimized
+        :param radius_lo: lower bound of the radius, if radius_mode = 'variable' is selected
         :return:
         '''
+
+        def add_absolute_value_constraints(radius, dimension, netPrefix, centered_inputs):
+            ineqs = []
+            additional_vars = []
+
+            deltas = [Variable(0, i, netPrefix, 'd', 'Int') for i in range(dimension)]
+            abs_outs = [Variable(0, i, netPrefix, 'abs') for i in range(dimension)]
+            ineqs.append([Abs(ci, aout, d) for ci, aout, d in zip(centered_inputs, abs_outs, deltas)])
+            ineqs.append(Geq(radius, Sum(abs_outs)))
+
+            additional_vars.append(deltas)
+            additional_vars.append(abs_outs)
+
+            return ineqs, additional_vars
+
+        def add_direct_constraints(radius, dimension, centered_inputs):
+            ineqs = []
+            for i in range(2 ** dimension):
+                terms = []
+                for j in range(dimension):
+                    neg = (i // 2 ** j) % 2
+                    if neg > 0:
+                        terms.append(Neg(centered_inputs[j]))
+                    else:
+                        terms.append(centered_inputs[j])
+
+                ineqs.append(Geq(radius, Sum(terms)))
+
+            return ineqs, []
 
         if not metric in ['manhattan', 'chebyshev']:
             raise ValueError('Metric {m} is not supported!'.format(m=metric))
@@ -143,43 +177,49 @@ class Encoder:
 
         if not len(center) == dim:
             raise ValueError('Center has dimension {cdim}, but input has dimension {idim}'.format(cdim=len(center),
-                                                                                                  idim=dim))
+                                                                                                idim=dim))
 
         for i, invar in enumerate(invars):
             invar.update_bounds(center[i] - radius, center[i] + radius)
 
-        if metric == 'manhattan':
-            centered_inputs = []
-            netPrefix, _, _ = invars[0].getIndex()
+        netPrefix, _, _ = invars[0].getIndex()
+        additional_vars = []
+        additional_ineqs = []
+        r = None
+
+        if radius_mode == 'constant':
             # need float as somehow gurobi can't handle float64 as type
             r = Constant(float(radius), netPrefix, 0, 0)
+        elif radius_mode == 'variable':
+            r = Variable(0, 0, netPrefix, 'r')
+            r.update_bounds(float(radius_lo), float(radius))
+            additional_vars.append(r)
+
+            diff = self.equivalence_layer.get_outvars()[0]
+            additional_ineqs.append(Geq(diff, Constant(0, netPrefix, 0, 0)))
+        else:
+            raise ValueError('radius_mode: {} is not supported!'.format(radius_mode))
+
+        if metric == 'chebyshev' and radius_mode == 'variable':
+            for i, invar in enumerate(invars):
+                center = Constant(float(center[i]), netPrefix, 0, 0)
+                additional_ineqs.append(Geq(invar, Sum([center, Neg(r)])))
+                additional_ineqs.append(Geq(Sum([center, r]), invar))
+
+        if metric == 'manhattan':
+            centered_inputs = []
+
             for i in range(dim):
                 centered_inputs.append(Sum([invars[i], Neg(Constant(center[i], netPrefix, 0, i))]))
 
-            ineqs = []
-            additional_vars = []
-
             if fc.manhattan_use_absolute_value:
-                deltas = [Variable(0, i, netPrefix, 'd', 'Int') for i in range(dim)]
-                abs_outs = [Variable(0, i, netPrefix, 'abs') for i in range(dim)]
-                ineqs.append([Abs(ci, aout, d) for ci, aout, d in zip(centered_inputs, abs_outs, deltas)])
-                ineqs.append(Geq(r, Sum(abs_outs)))
-
-                additional_vars.append(deltas)
-                additional_vars.append(abs_outs)
+                ineqs, constraint_vars = add_absolute_value_constraints(r, dim, netPrefix, centered_inputs)
             else:
-                for i in range(2 ** dim):
-                    terms = []
-                    for j in range(dim):
-                        neg = (i // 2 ** j) % 2
-                        if neg > 0:
-                            terms.append(Neg(centered_inputs[j]))
-                        else:
-                            terms.append(centered_inputs[j])
+                ineqs, constraint_vars = add_direct_constraints(r, dim, centered_inputs)
 
-                    ineqs.append(Geq(r, Sum(terms)))
-
-            self.input_layer.add_input_constraints(ineqs, additional_vars)
+            additional_vars += constraint_vars
+            additional_ineqs += ineqs
+            self.input_layer.add_input_constraints(additional_ineqs, additional_vars)
 
     def calc_cluster_boundary(self, c1, c2, epsilon):
         c1 = np.array(c1)
