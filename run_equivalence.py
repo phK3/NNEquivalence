@@ -317,6 +317,106 @@ def encode_equiv_radius(path1, path2, input_los, input_his, equiv_mode, center, 
     # maximum for diff should be greater 0
     return model
 
+def encode_optimize_radius(path1, path2, input_los, input_his, equiv_mode, center, radius_lo, radius_hi, metric, name):
+    # accepts one_hot_partial_top_k as mode
+    # also one_hot_diff ???
+
+    fc.use_asymmetric_bounds = True
+    fc.use_context_groups = True
+    fc.use_grb_native = False
+    fc.use_eps_maximum = True
+    fc.manhattan_use_absolute_value = True
+    fc.epsilon = 1e-4
+
+    enc = Encoder()
+    enc.encode_equivalence_from_file(path1, path2, input_los, input_his, equiv_mode, equiv_mode)
+    enc.add_input_radius(center, radius_hi, metric, radius_mode='variable', radius_lo=radius_lo)
+
+    interval_arithmetic(enc.get_constraints())
+    for i in range(1, 3):
+        enc.optimize_layer(enc.a_layers, i)
+        enc.optimize_layer(enc.b_layers, i)
+        interval_arithmetic(enc.get_constraints())
+
+    model = create_gurobi_model(enc.get_vars(), enc.get_constraints(), name)
+    r = model.getVarByName('r_0_0')
+    model.setObjective(r, grb.GRB.MINIMIZE)
+    model.setParam('TimeLimit', 30 * 60)
+
+    # for obj val of r -> NNs are different
+    # for (bound val - eps) of r -> NNs are equivalent
+    return model
+
+
+def run_radius_optimization(testname, path1='mnist8x8_70p_retrain.h5', path2='mnist8x8_80p_retrain.h5', cluster_idx=0,
+                            radius_lo=6.8, radius_hi=27.2):
+    path1 = examples + path1
+    path2 = examples + path2
+    mode = 'one_hot_partial_top_3'
+    inl = [0 for i in range(64)]
+    inh = [16 for i in range(64)]
+
+    # 10 most dense clusters in hierarchical manhattan clustering of mnist8x8 training data
+    clusters_to_verify = pickle.load(open("to_verify.pickle", "rb"))
+
+    clno = cluster_idx
+    cluster = clusters_to_verify[clno]
+
+    models = []
+    ins = []
+
+    stdout = sys.stdout
+    teststart = timer()
+
+    # manhattan distance
+    metric = 'manhattan'
+
+    name = testname + '_manhattan_cluster_{cl}_radius_opt'.format(cl=clno)
+
+    sys.stdout = open('Evaluation/' + name + '.txt', 'w')
+
+    model = encode_optimize_radius(path1, path2, inl, inh, mode, cluster.center, radius_lo, radius_hi, metric, name)
+    models.append(model)
+    model.optimize()
+
+    sys.stdout = stdout
+    inputs = [model.getVarByName('i_0_{idx}'.format(idx=j)).X for j in range(64)]
+    ins.append(inputs)
+
+    fname = name + '.pickle'
+    with open(fname, 'wb') as fp:
+        pickle.dump(inputs, fp)
+
+    now = timer()
+    print('### {name} finished. Total time elapsed: {t}'.format(name=name, t=now - teststart))
+    print('    radius = (val, bound) = ({v}, {bd})'.format(v=model.ObjVal, bd=model.ObjBound))
+    print('    ins = {i}'.format(i=str(inputs)))
+
+    teststart = timer()
+
+    radius = model.ObjBound - 0.1
+    name = testname + '_manhattan_cluster_{cl}_radius_test'.format(cl=clno)
+
+    sys.stdout = open('Evaluation/' + name + '.txt', 'w')
+    model = encode_equiv_radius(path1, path2, inl, inh, mode, cluster.center, radius, metric, name)
+    models.append(model)
+    model.optimize()
+
+    sys.stdout = stdout
+    inputs = [model.getVarByName('i_0_{idx}'.format(idx=j)).X for j in range(64)]
+    ins.append(inputs)
+
+    fname = name + '.pickle'
+    with open(fname, 'wb') as fp:
+        pickle.dump(inputs, fp)
+
+    now = timer()
+    print('### {name} finished. Total time elapsed: {t}'.format(name=name, t=now - teststart))
+    print('    radius = {r}'.format(r=radius))
+    print('    (val, bound) = ({v}, {bd})'.format(v=model.ObjVal, bd=model.ObjBound))
+    print('    ins = {i}'.format(i=str(inputs)))
+
+    return models, ins
 
 def run_radius_evaluation():
     path70 = examples + 'mnist8x8_70p_retrain.h5'
