@@ -560,6 +560,19 @@ class Encoder:
             var.update_bounds(lb, ub)
 
 
+    def optimize_net(self, net):
+        for i in range(len(net)):
+            if not net[i].activation == 'one_hot':
+                self.optimize_layer(net, i)
+                interval_arithmetic(self.get_constraints())
+
+
+    def optimize_constraints(self):
+        interval_arithmetic(self.get_constraints())
+        self.optimize_net(self.a_layers)
+        self.optimize_net(self.b_layers)
+
+
     def check_equivalence_layer(self, layer_idx):
         opt_vars = []
         opt_constrs = []
