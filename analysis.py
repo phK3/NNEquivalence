@@ -239,3 +239,27 @@ def get_optimization_data_dict(logstring):
             data_dict['bound'] = float(data[5][:-1])
 
     return data_dict
+
+
+def update_dict_from_log(dict, logfile=None, added_dirs=''):
+    """
+
+    :param dict:
+    :param logfile:
+    :param added_dirs: if the logfile moved from it's original directory to a subdirectory, you can add the subdirectory
+        via added_dirs (e.g. Eval/foo moved to Eval/Aval/foo --> added_dirs = Aval
+    :return:
+    """
+    if logfile is None:
+        logfile = dict['logfile']
+
+    dirs = logfile.split('/')
+    dirs.insert(1, added_dirs)
+    logfile = '/'.join(dirs)
+
+    logs = separate_logs(logfile)
+    data_dict = get_optimization_data_dict(logs[-1])
+
+    dict.update(data_dict)
+
+    return dict
