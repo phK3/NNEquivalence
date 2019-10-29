@@ -9,6 +9,7 @@ import numpy as np
 import pickle
 from math import factorial
 from timeit import default_timer as timer
+import pandas as pd
 
 examples = 'ExampleNNs/'
 
@@ -300,8 +301,17 @@ def encode_equiv_radius(path1, path2, input_los, input_his, equiv_mode, center, 
 
     interval_arithmetic(enc.get_constraints())
     for i in range(1, 3):
-        enc.optimize_layer(enc.a_layers, i)
-        enc.optimize_layer(enc.b_layers, i)
+        if '30_10' in path1:
+            if i < 2:
+                enc.optimize_layer(enc.a_layers, i)
+        else:
+            enc.optimize_layer(enc.a_layers, i)
+
+        if '30_10' in path2:
+            if i < 2:
+                enc.optimize_layer(enc.b_layers, i)
+        else:
+            enc.optimize_layer(enc.b_layers, i)
         interval_arithmetic(enc.get_constraints())
 
     if equiv_mode == 'one_hot_diff':
@@ -486,7 +496,8 @@ def run_radius_evaluation():
     return models, ins
 
 
-def run_hierarchical_cluster_evaluation(testname, path1='mnist8x8_70p_retrain.h5', path2='mnist8x8_80p_retrain.h5'):
+def run_hierarchical_cluster_evaluation(testname, path1='mnist8x8_70p_retrain.h5', path2='mnist8x8_80p_retrain.h5',
+                                        no_clusters=10, no_steps=3):
     path1 = examples + path1
     path2 = examples + path2
     mode = 'one_hot_partial_top_3'
@@ -502,19 +513,22 @@ def run_hierarchical_cluster_evaluation(testname, path1='mnist8x8_70p_retrain.h5
     models = []
     ins = []
 
+    dict_list = []
+
     stdout = sys.stdout
-    for s in steps:
-        for clno, cluster in enumerate(clusters_to_verify):
+    for s in steps[:no_steps]:
+        for clno, cluster in enumerate(clusters_to_verify[:no_clusters]):
             teststart = timer()
 
             # manhattan distance
             r = s * cluster.distance
             metric = 'manhattan'
 
-            name = testname + 'manhattan_cluster_{cl}_step_{s}'.format(cl=clno, s=s)
+            name = testname + '_manhattan_cluster_{cl}_step_{s}'.format(cl=clno, s=s)
             #name = 'mnist_70_vs_80_manhattan_cluster_{cl}_step_{s}'.format(cl=clno, s=s)
 
-            sys.stdout = open('Evaluation/' + name + '.txt', 'w')
+            logfile = 'Evaluation/' + name + '.txt'
+            sys.stdout = open(logfile, 'w')
 
             model = encode_equiv_radius(path1, path2, inl, inh, mode, cluster.center, r, metric, name)
             # stop optimization, if counterexample with at least 10 difference is found
@@ -536,7 +550,15 @@ def run_hierarchical_cluster_evaluation(testname, path1='mnist8x8_70p_retrain.h5
             print('    (val, bound) = ({v}, {bd})'.format(v=model.ObjVal, bd=model.ObjBound))
             print('    ins = {i}'.format(i=str(inputs)))
 
-    return models, ins
+            eval_dict = {'testname': testname, 'cluster': clno, 'step': s, 'radius': r, 'obj': model.ObjVal,
+                         'bound': model.ObjBound, 'time': now - teststart, 'logfile': logfile, 'inputfile': fname}
+
+            dict_list.append(eval_dict)
+
+    df = pd.DataFrame(dict_list)
+    df.to_pickle('df_' + testname + '.pickle')
+
+    return models, ins, dict_list
 
 
 def run_student_evaluation():
