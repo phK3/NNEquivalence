@@ -561,6 +561,79 @@ def run_hierarchical_cluster_evaluation(testname, path1='mnist8x8_70p_retrain.h5
     return models, ins, dict_list
 
 
+def run_radius_k_optimization(testname, path1=None, path2=None, ks=None, no_clusters=10, test_time=None):
+    # default arguments
+    if path1 is None:
+        path1 = examples + 'mnist8x8_70p_retrain.h5'
+    if path2 is None:
+        path2 = examples + 'mnist8x8_80p_retrain.h5'
+    if ks is None:
+        ks = [1,2,3,4]
+
+    clusters_to_verify = pickle.load(open("to_verify.pickle", "rb"))
+    cluster_centers = [cl.center for cl in clusters_to_verify[:no_clusters]]
+
+    inl = [0 for i in range(64)]
+    inh = [16 for i in range(64)]
+
+    models = []
+    ins = []
+
+    dict_list = []
+
+    stdout = sys.stdout
+    for clno, center in enumerate(cluster_centers):
+        radius_lo = 0
+        for k in ks:
+            teststart = timer()
+
+            # manhattan distance
+            metric = 'manhattan'
+            mode = 'one_hot_partial_top_{k}'.format(k=k)
+
+            name = testname + '_manhattan_cluster_{cl}_top_{k}_radius_opt'.format(cl=clno, k=k)
+
+            logfile = 'Evaluation/' + name + '.txt'
+            sys.stdout = open(logfile, 'w')
+
+            model = encode_optimize_radius(path1, path2, inl, inh, mode, center, radius_lo, 50, metric, name)
+            models.append(model)
+
+            # somehow gurobi has numerical problems and sets E_pi indicator variables not close enough to zero
+            if k == 1:
+                model.setParam('IntFeasTol', 1e-8)
+
+            if not test_time is None:
+                model.setParam('TimeLimit', test_time)
+
+            model.optimize()
+
+            sys.stdout = stdout
+            inputs = [model.getVarByName('i_0_{idx}'.format(idx=j)).X for j in range(64)]
+            ins.append(inputs)
+
+            fname = name + '.pickle'
+            with open(fname, 'wb') as fp:
+                pickle.dump(inputs, fp)
+
+            radius_lo = model.ObjBound - fc.epsilon
+
+            now = timer()
+            print('### {name} finished. Total time elapsed: {t}'.format(name=name, t=now - teststart))
+            print('    radius in (val, bound) = ({v}, {bd})'.format(v=model.ObjVal, bd=model.ObjBound))
+            print('    ins = {i}'.format(i=str(inputs)))
+
+            eval_dict = {'testname': testname, 'cluster': clno, 'radius_obj': model.ObjVal,
+                         'radius_bound': model.ObjBound, 'time': now - teststart, 'logfile': logfile, 'inputfile': fname}
+
+            dict_list.append(eval_dict)
+
+    df = pd.DataFrame(dict_list)
+    df.to_pickle('df_' + testname + '.pickle')
+
+    return models, ins, dict_list
+
+
 def run_student_evaluation():
     fc.use_asymmetric_bounds = True
     fc.use_context_groups = True
