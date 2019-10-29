@@ -207,9 +207,9 @@ class Encoder:
 
         if metric == 'chebyshev' and radius_mode == 'variable':
             for i, invar in enumerate(invars):
-                center = Constant(float(center[i]), netPrefix, 0, 0)
-                additional_ineqs.append(Geq(invar, Sum([center, Neg(r)])))
-                additional_ineqs.append(Geq(Sum([center, r]), invar))
+                center_i = Constant(float(center[i]), netPrefix, 0, 0)
+                additional_ineqs.append(Geq(invar, Sum([center_i, Neg(r)])))
+                additional_ineqs.append(Geq(Sum([center_i, r]), invar))
 
         if metric == 'manhattan':
             centered_inputs = []
@@ -224,7 +224,8 @@ class Encoder:
 
             additional_vars += constraint_vars
             additional_ineqs += ineqs
-            self.input_layer.add_input_constraints(additional_ineqs, additional_vars)
+
+        self.input_layer.add_input_constraints(additional_ineqs, additional_vars)
 
     def calc_cluster_boundary(self, c1, c2, epsilon):
         c1 = np.array(c1)
