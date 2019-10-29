@@ -201,7 +201,8 @@ class Encoder:
             additional_vars.append(r)
 
             diff = self.equivalence_layer.get_outvars()[0]
-            additional_ineqs.append(Geq(diff, Constant(0, netPrefix, 0, 0)))
+            additional_ineqs.append(Geq(diff, Constant(fc.epsilon, netPrefix, 0, 0)))
+            #additional_ineqs.append(Geq(diff, Constant(0, netPrefix, 0, 0)))
         else:
             raise ValueError('radius_mode: {} is not supported!'.format(radius_mode))
 
