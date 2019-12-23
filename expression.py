@@ -984,13 +984,15 @@ class Abs(Expression):
         elif fc.use_grb_native:
             ret_constr = model.addConstr(self.output.to_gurobi(model) == grb.abs_(self.input.to_gurobi(model)), name=c_name)
         else:
-            bigM = 2*max(abs(self.input.getLo()), abs(self.input.getHi()))
+            out_bound = max(abs(self.input.getLo()), abs(self.input.getHi()))
+            bigM1 = out_bound + self.input.getHi()
+            bigM2 = out_bound - self.input.getLo()
             model.addConstr(self.output.to_gurobi(model) >= - self.input.to_gurobi(model), name=c_name + '_a')
             model.addConstr(self.output.to_gurobi(model) >= self.input.to_gurobi(model), name=c_name + '_b')
             model.addConstr(self.output.to_gurobi(model)
-                            <= - self.input.to_gurobi(model) + self.delta.to_gurobi(model) * bigM, name=c_name + '_c')
+                            <= - self.input.to_gurobi(model) + self.delta.to_gurobi(model) * bigM1, name=c_name + '_c')
             ret_constr = model.addConstr(self.output.to_gurobi(model)
-                            <= self.input.to_gurobi(model) + (1 - self.delta.to_gurobi(model)) * bigM, name=c_name + '_c')
+                            <= self.input.to_gurobi(model) + (1 - self.delta.to_gurobi(model)) * bigM2, name=c_name + '_c')
 
         return ret_constr
 
