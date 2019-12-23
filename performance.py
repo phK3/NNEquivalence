@@ -410,6 +410,9 @@ class Encoder:
         elif compared.startswith('one_hot_partial_top_') or compared == 'one_hot_diff':
             one_hot_layer = ('sort_one_hot_vector', num_outs1, None)
             layers1.append(one_hot_layer)
+        elif compared == 'outputs':
+            # don't have to append any layer
+            pass
         else:
             raise ValueError('Invalid parameter \'compared\' for encode_equivalence: {name}'.format(name=compared))
 

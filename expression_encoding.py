@@ -1,6 +1,6 @@
 
 from expression import Variable, Linear, Relu, Max, Multiplication, Constant, Sum, Neg, One_hot, Greater_Zero, \
-    Geq, BinMult, Gt_Int, Impl, IndicatorToggle, TopKGroup, ExtremeGroup
+    Geq, BinMult, Gt_Int, Impl, IndicatorToggle, TopKGroup, ExtremeGroup, Abs
 from keras_loader import KerasLoader
 import gurobipy as grb
 import datetime
@@ -490,12 +490,54 @@ def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
             constraints += n_constraints
 
         constraints.append(Geq(Sum(deltas), Constant(1, 'E', 1, 0)))
-    elif mode == 'optimize_diff':
+    elif mode in ['optimize_diff', 'optimize_diff_manhattan', 'optimize_diff_chebyshev']:
         for i, (out1, out2) in enumerate(zip(outs1, outs2)):
             diff_i = Variable(0, i, 'E', 'diff')
             constraints.append(Linear(Sum([out1, Neg(out2)]), diff_i))
 
             diffs.append(diff_i)
+
+        # will continue to be either optimize_diff_manhattan or ..._chebyshev
+        if mode.startswith('optimize_diff_'):
+            abs_vals = []
+            for i, diff in enumerate(diffs):
+                abs_val_i = Variable(0, i, 'E', 'abs_d')
+                abs_vals.append(abs_val_i)
+
+                delta_i = Variable(0, i, 'E', 'd', 'Int')
+                delta_i.update_bounds(0, 1)
+                deltas.append(delta_i)
+
+                constraints.append(Abs(diff, abs_val_i, delta_i))
+
+            diffs.append(abs_vals)
+
+            if mode == 'optimize_diff_manhattan':
+                norm = Variable(1, 0, 'E', 'norm')
+
+                constraints.append(Linear(Sum(abs_vals), norm))
+
+                diffs.append(norm)
+
+            elif mode == 'optimize_diff_chebyshev':
+                partial_matrix, partial_vars, partial_constrs = encode_partial_layer(1, abs_vals, 1, 'E')
+                diffs.append(partial_vars)
+                constraints.append(partial_constrs)
+                deltas.append(partial_matrix)
+
+                context_constraints = []
+                if fc.use_context_groups:
+                    # partial_vars = ([E_y_ij, ...] + [E_o_1_0])
+                    context_constraints.append(TopKGroup(partial_vars[-1], abs_vals, 1))
+
+                constraints.append(context_constraints)
+
+                # only for interface to norm optimization, otherwise would have to optimize E_o_1_0
+                norm = Variable(1, 0, 'E', 'norm')
+                constraints.append(Linear(partial_vars[-1], norm))
+
+                diffs.append(norm)
+
     elif mode == 'diff_one_hot':
         # requires that outs_i are the pi_1_js in of the respective permutation matrices
         # or input to this layer are one-hot vectors
