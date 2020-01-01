@@ -103,7 +103,7 @@ def run_hierarchical_cluster_evaluation(testname, path1='mnist8x8_70p_retrain.h5
     return models, ins, dict_list
 
 
-def run_final_evaluation_clusters(time_limit=60*60*5, testrun=False):
+def run_final_evaluation_clusters(time_limit=60*60*5, testrun=False, k_start=1):
     nns = ['mnist8x8_lin.h5', 'mnist8x8_student_18_18_10.h5', 'mnist8x8_student_30_10.h5',
            'mnist8x8_70p_retrain.h5', 'mnist8x8_50p_retrain.h5', 'mnist8x8_20p_retrain.h5']
 
@@ -114,14 +114,15 @@ def run_final_evaluation_clusters(time_limit=60*60*5, testrun=False):
     t_start = timer()
     t_end = t_start + time_limit
 
-    k = 1
+    k = k_start
 
-    while timer() < t_end:
+    while timer() < t_end and k <= 3:
         mode = 'one_hot_partial_top_{}'.format(k)
 
         for i in range(len(nns)):
             # for now exclude comparison of same nns
-            for j in range(i + 1, len(nns)):
+            for j in range(i, i+1): # hack to include self equiv
+            #for j in range(i + 1, len(nns)):
                 if testrun:
                     timer_stop = 20
                     no_clusters = 1
