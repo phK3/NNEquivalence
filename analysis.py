@@ -14,6 +14,10 @@ def print_table(vars, model):
 
     for v in flatten(vars):
         net, _, _ = v.getIndex()
+
+        if net == 'Eoh':
+            net = 'E'
+
         var_dict[net].append((v, model.getVarByName(str(v)).X))
         #var_dict[net].append('{v_name} = {value}'.format(v_name=str(v), value=model.getVarByName(str(v)).X))
 
