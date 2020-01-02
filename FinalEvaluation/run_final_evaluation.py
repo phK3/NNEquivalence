@@ -37,6 +37,31 @@ def encode_equiv_radius(path1, path2, input_los, input_his, equiv_mode, center, 
     # maximum for diff should be greater 0
     return model
 
+def encode_equiv(path1, path2, input_los, input_his, mode, name):
+    # accepts one_hot_partial_top_k
+
+    fc.use_asymmetric_bounds = True
+    fc.use_context_groups = True
+    fc.use_grb_native = False
+    fc.use_eps_maximum = True
+    fc.manhattan_use_absolute_value = True
+    fc.epsilon = 1e-4
+
+    enc = Encoder()
+    enc.encode_equivalence_from_file(path1, path2, input_los, input_his, mode, mode)
+
+    enc.optimize_constraints()
+
+    k = int(mode.split('_')[-1])
+
+    model = create_gurobi_model(enc.get_vars(), enc.get_constraints(), name)
+    diff = model.getVarByName('E_diff_0_{num}'.format(num=k))
+    model.setObjective(diff, grb.GRB.MAXIMIZE)
+    model.setParam('TimeLimit', 30 * 60)
+
+    # maximum for diff should be greater 0
+    return model
+
 
 def run_hierarchical_cluster_evaluation(testname, path1='mnist8x8_70p_retrain.h5', path2='mnist8x8_80p_retrain.h5',
                                         no_clusters=10, no_steps=3, metric='manhattan', logdir='FinalEvaluation',
@@ -103,6 +128,61 @@ def run_hierarchical_cluster_evaluation(testname, path1='mnist8x8_70p_retrain.h5
     return models, ins, dict_list
 
 
+def run_no_cluster_evaluation(testname, path1='mnist8x8_70p_retrain.h5', path2='mnist8x8_80p_retrain.h5',
+                              logdir='FinalEvaluation', obj_stop=20, timer_stop=1800,
+                              mode='one_hot_partial_top_3'):
+    path1 = examples + path1
+    path2 = examples + path2
+    inl = [0 for i in range(64)]
+    inh = [16 for i in range(64)]
+
+    stdout = sys.stdout
+    teststart = timer()
+
+    logfile = logdir + '/' + testname + '.txt'
+    sys.stdout = open(logfile, 'w')
+
+    model = encode_equiv(path1, path2, inl, inh, mode, testname)
+    # stop optimization, if counterexample with at least obj_stop difference is found
+    model.setParam('BestObjStop', obj_stop)
+    model.setParam('TimeLimit', timer_stop)
+    model.optimize()
+
+    sys.stdout = stdout
+    inputs = [model.getVarByName('i_0_{idx}'.format(idx=j)).X for j in range(64)]
+
+    fname = logdir + '/' + testname + '.pickle'
+    with open(fname, 'wb') as fp:
+        pickle.dump(inputs, fp)
+
+    now = timer()
+    print('### {name} finished. Total time elapsed: {t}'.format(name=testname, t=now - teststart))
+    print('    (val, bound) = ({v}, {bd})'.format(v=model.ObjVal, bd=model.ObjBound))
+    print('    ins = {i}'.format(i=str(inputs)))
+
+    eval_dict = {'testname': testname, 'obj': model.ObjVal, 'bound': model.ObjBound,
+                 'time': now - teststart, 'logfile': logfile, 'inputfile': fname,
+                 'model_name': model.getAttr('ModelName'),
+                 'BoundVio': model.getAttr('BoundVio'),
+                 'BoundVioIndex': model.getAttr('BoundVioIndex'),
+                 'ConstrVio': model.getAttr('ConstrVio'),
+                 'ConstrVioIndex': model.getAttr('ConstrVioIndex'),
+                 'ConstrVioSum': model.getAttr('ConstrVioSum'),
+                 'IntVio': model.getAttr('IntVio'),
+                 'IntVioIndex': model.getAttr('IntVioIndex'),
+                 'IntVioSum': model.getAttr('IntVioSum'),
+                 'MaxBound': model.getAttr('MaxBound'),
+                 'MaxCoeff': model.getAttr('MaxCoeff'),
+                 'MaxRHS': model.getAttr('MaxRHS'),
+                 'MinBound': model.getAttr('MinBound'),
+                 'MinCoeff': model.getAttr('MinCoeff')}
+
+    with open(logdir + '/dict_' + testname + '.pickle', 'wb') as fp:
+        pickle.dump(eval_dict, fp)
+
+    return model, inputs, eval_dict
+
+
 def run_final_evaluation_clusters(time_limit=60*60*5, testrun=False, k_start=1):
     nns = ['mnist8x8_lin.h5', 'mnist8x8_student_18_18_10.h5', 'mnist8x8_student_30_10.h5',
            'mnist8x8_70p_retrain.h5', 'mnist8x8_50p_retrain.h5', 'mnist8x8_20p_retrain.h5']
@@ -140,5 +220,45 @@ def run_final_evaluation_clusters(time_limit=60*60*5, testrun=False, k_start=1):
                 ins_list.append(ins)
                 dicts_list.append(dict_lists)
         k += 1
+
+    return model_list, ins_list, dicts_list
+
+
+def run_final_evaluation_no_clusters(time_limit=60*60*5, testrun=False, k_start=1):
+    nns = ['mnist8x8_lin.h5', 'mnist8x8_student_18_18_10.h5', 'mnist8x8_student_30_10.h5',
+           'mnist8x8_70p_retrain.h5', 'mnist8x8_50p_retrain.h5', 'mnist8x8_20p_retrain.h5']
+
+    model_list = []
+    ins_list = []
+    dicts_list = []
+
+    t_start = timer()
+    t_end = t_start + time_limit
+
+    k = k_start
+
+    while timer() < t_end and k <= 3:
+        mode = 'one_hot_partial_top_{}'.format(k)
+
+        for i in range(len(nns)):
+            for j in range(i + 1, len(nns)):
+                if testrun:
+                    timer_stop = 20
+                else:
+                    # 30mins time limit for each optimization
+                    timer_stop = 60*30
+
+                # [:-3] to exclude .h5 from name
+                testname = '{}_vs_{}_{}'.format(nns[i][:-3], nns[j][:-3], mode)
+                model, ins, eval_dict = run_no_cluster_evaluation(testname=testname, path1=nns[i],
+                                                                  path2=nns[j], mode=mode,
+                                                                  timer_stop=timer_stop)
+                model_list.append(model)
+                ins_list.append(ins)
+                dicts_list.append(eval_dict)
+        k += 1
+
+    df = pd.DataFrame(dicts_list)
+    df.to_pickle('df_no_clusters.pickle')
 
     return model_list, ins_list, dicts_list
