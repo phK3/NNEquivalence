@@ -426,6 +426,6 @@ def run_final_evaluation_radius_opt(time_limit=60*60*5, testrun=False, k_start=1
         k += 1
 
     df = pd.DataFrame(dicts_list)
-    df.to_pickle('df_no_clusters.pickle')
+    df.to_pickle('df_variable_radius.pickle')
 
     return model_list, ins_list, dicts_list, empty_tests
