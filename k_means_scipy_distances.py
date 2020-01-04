@@ -1,6 +1,7 @@
 '''
 Source code taken from:
 https://stackoverflow.com/questions/5529625/is-it-possible-to-specify-your-own-distance-function-using-scikit-learn-k-means
+last visited: 2nd January 2020
 '''
 
 from __future__ import division

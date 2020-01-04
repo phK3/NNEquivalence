@@ -267,3 +267,19 @@ def update_dict_from_log(dict, logfile=None, added_dirs=''):
     dict.update(data_dict)
 
     return dict
+
+
+def update_dict_split_testname(dict):
+    """
+    Adds fields nn1, nn2, top_k to dict by splitting field testname.
+    Testname must be of format nn1_vs_nn2_one_hot_partial_top_k
+
+    :param dict: dictionary with field testname
+    :return: updated dict with added fields nn1, nn2
+    """
+    nn1, nn2, topk = re.split('_vs_|_one_hot_', dict['testname'])
+    dict['nn1'] = nn1
+    dict['nn2'] = nn2
+    dict['top_k'] = int(topk.split('_')[-1])
+
+    return dict
