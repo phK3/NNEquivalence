@@ -167,7 +167,12 @@ def run_radius_optimization(testname, path1='mnist8x8_70p_retrain.h5', path2='mn
         model.optimize()
 
         sys.stdout = stdout
-        inputs = [model.getVarByName('i_0_{idx}'.format(idx=j)).X for j in range(64)]
+
+        if model.SolCount > 0:
+            inputs = [model.getVarByName('i_0_{idx}'.format(idx=j)).X for j in range(64)]
+        else:
+            inputs = 'No Solution found for {}'.format(name)
+
         ins.append(inputs)
 
         fname = name + '.pickle'
@@ -384,7 +389,7 @@ def find_radius(tname, clno, df):
 
     return radius_lo, radius_hi
 
-def run_final_evaluation_radius_opt(time_limit=60*60*5, testrun=False, k_start=1):
+def run_final_evaluation_radius_opt(time_limit=60*60*5, testrun=False, k_start=1, nn1_start=0, nn2_start=0):
     nns = ['mnist8x8_lin.h5', 'mnist8x8_student_18_18_10.h5', 'mnist8x8_student_30_10.h5',
            'mnist8x8_70p_retrain.h5', 'mnist8x8_50p_retrain.h5', 'mnist8x8_20p_retrain.h5']
 
@@ -402,8 +407,8 @@ def run_final_evaluation_radius_opt(time_limit=60*60*5, testrun=False, k_start=1
     while timer() < t_end and k <= 3:
         mode = 'one_hot_partial_top_{}'.format(k)
 
-        for i in range(len(nns)):
-            for j in range(i + 1, len(nns)):
+        for i in range(nn1_start, len(nns)):
+            for j in range(max(i + 1, nn2_start), len(nns)):
                 if testrun:
                     timer_stop = 20
                     no_clusters = 1
@@ -424,6 +429,9 @@ def run_final_evaluation_radius_opt(time_limit=60*60*5, testrun=False, k_start=1
                     ins_list.append(ins)
                     dicts_list.append(eval_dict)
         k += 1
+        # started at (k, nn1s, nn2s) for larger ks want to check all nns again
+        nn1_start = 0
+        nn2_start = 0
 
     df = pd.DataFrame(dicts_list)
     df.to_pickle('df_variable_radius.pickle')
