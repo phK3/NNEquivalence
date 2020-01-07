@@ -141,7 +141,7 @@ def run_radius_optimization(testname, path1='mnist8x8_70p_retrain.h5', path2='mn
     clusters_to_verify = pickle.load(open("to_verify.pickle", "rb"))
     # TODO: remove hack
     #df_fixed = pickle.load(open('FinalEvaluation/FixedRadius/dataframes/df_summary.pickle', 'rb'))
-    df_fixed = pickle.load(open('df_' + testname + '.pickle', 'rb'))
+    df_fixed = pickle.load(open('FinalEvaluation/FixedRadius/dataframes/df_' + testname + '.pickle', 'rb'))
 
     models = []
     ins = []
