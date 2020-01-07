@@ -186,22 +186,25 @@ def run_radius_optimization(testname, path1='mnist8x8_70p_retrain.h5', path2='mn
         print('    (val, bound) = ({v}, {bd})'.format(v=model.ObjVal, bd=model.ObjBound))
         print('    ins = {i}'.format(i=str(inputs)))
 
-        eval_dict = {'testname': testname, 'cluster': clno, 'obj': model.ObjVal,
-                     'bound': model.ObjBound, 'time': now - teststart, 'logfile': logfile, 'inputfile': fname,
-                     'model_name': model.getAttr('ModelName'),
-                     'BoundVio': model.getAttr('BoundVio'),
-                     'BoundVioIndex': model.getAttr('BoundVioIndex'),
-                     'ConstrVio': model.getAttr('ConstrVio'),
-                     'ConstrVioIndex': model.getAttr('ConstrVioIndex'),
-                     'ConstrVioSum': model.getAttr('ConstrVioSum'),
-                     'IntVio': model.getAttr('IntVio'),
-                     'IntVioIndex': model.getAttr('IntVioIndex'),
-                     'IntVioSum': model.getAttr('IntVioSum'),
-                     'MaxBound': model.getAttr('MaxBound'),
-                     'MaxCoeff': model.getAttr('MaxCoeff'),
-                     'MaxRHS': model.getAttr('MaxRHS'),
-                     'MinBound': model.getAttr('MinBound'),
-                     'MinCoeff': model.getAttr('MinCoeff')}
+        if model.SolCount > 0:
+            eval_dict = {'testname': testname, 'cluster': clno, 'obj': model.ObjVal,
+                         'bound': model.ObjBound, 'time': now - teststart, 'logfile': logfile, 'inputfile': fname,
+                         'model_name': model.getAttr('ModelName'),
+                         'BoundVio': model.getAttr('BoundVio'),
+                         'BoundVioIndex': model.getAttr('BoundVioIndex'),
+                         'ConstrVio': model.getAttr('ConstrVio'),
+                         'ConstrVioIndex': model.getAttr('ConstrVioIndex'),
+                         'ConstrVioSum': model.getAttr('ConstrVioSum'),
+                         'IntVio': model.getAttr('IntVio'),
+                         'IntVioIndex': model.getAttr('IntVioIndex'),
+                         'IntVioSum': model.getAttr('IntVioSum'),
+                         'MaxBound': model.getAttr('MaxBound'),
+                         'MaxCoeff': model.getAttr('MaxCoeff'),
+                         'MaxRHS': model.getAttr('MaxRHS'),
+                         'MinBound': model.getAttr('MinBound'),
+                         'MinCoeff': model.getAttr('MinCoeff')}
+        else:
+            eval_dict = {'testname': testname, 'cluster': clno}
 
         dict_list.append(eval_dict)
 
@@ -411,7 +414,10 @@ def run_final_evaluation_radius_opt(time_limit=60*60*5, testrun=False, k_start=1
     #      'mnist8x8_70p_retrain.h5', 'mnist8x8_50p_retrain.h5', 'mnist8x8_20p_retrain.h5']
 
     # other order of networks
-    nns = ['mnist8x8_20p_retrain.h5', 'mnist8x8_50p_retrain.h5', 'mnist8x8_70p_retrain.h5']
+    #nns = ['mnist8x8_20p_retrain.h5', 'mnist8x8_50p_retrain.h5', 'mnist8x8_70p_retrain.h5']
+
+    # retry student-30-10 vs 50p
+    nns = ['mnist8x8_student_30_10.h5', 'mnist8x8_50p_retrain.h5']
 
     model_list = []
     ins_list = []
@@ -431,7 +437,7 @@ def run_final_evaluation_radius_opt(time_limit=60*60*5, testrun=False, k_start=1
             for j in range(max(i + 1, nn2_start), len(nns)):
                 if testrun:
                     timer_stop = 20
-                    no_clusters = 1
+                    no_clusters = 5
                 else:
                     # 30mins time limit for each optimization
                     timer_stop = 60*30
