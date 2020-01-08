@@ -118,6 +118,10 @@ def plot_diffmap(in1, in2, vmin, vmax):
     return fig
 
 
+def get_grb_inputs(model, numins):
+    return [model.getVarByName('i_0_{idx}'.format(idx=j)).X for j in range(numins)]
+
+
 def plot_grb_solution(model, xdim, ydim):
     solution = [model.getVarByName('i_0_{idx}'.format(idx=j)).X for j in range(xdim * ydim)]
 
