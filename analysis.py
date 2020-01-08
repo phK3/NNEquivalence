@@ -70,6 +70,20 @@ def check_outputs(nn_file, ins, sort=True, printing=True):
     return outs
 
 
+def calculate_violation(ins, path1, path2, top_k=1):
+    outs1 = check_outputs(path1, ins, sort=False, printing=False)
+    outs2 = check_outputs(path2, ins, sort=False, printing=False)
+
+    a_idx = np.argmax([a.lo for a in outs1])
+    b_atop = outs2[a_idx]
+
+    outs1 = sorted(outs1, key=lambda x: -x.lo)
+    outs2 = sorted(outs2, key=lambda x: -x.lo)
+
+    b_k = outs2[top_k - 1]
+
+    return b_k.lo - b_atop.lo
+
 def compare_outputs(nn1, nn2, ins, sort=False):
     outs1 = check_outputs(nn1, ins, sort, printing=False)
     outs2 = check_outputs(nn2, ins, sort, printing=False)
