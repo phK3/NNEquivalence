@@ -159,6 +159,19 @@ class Encoder:
 
         return model
 
+    def encode_equiv(self, reference_nn, test_nn, input_lower_bounds, input_upper_bounds, mode):
+        if not mode.startswith(('optimize_diff_', 'one_hot_partial_top_')):
+            raise ValueError('Mode {} is not supported!\nSupported modes are: \n\toptimize_diff_[manhattan | chebyshev]'
+                             '\n\tone_hot_partial_top_[k]')
+
+        if mode.startswith('optimize_diff_'):
+            self.encode_equivalence_from_file(reference_nn, test_nn, input_lower_bounds, input_upper_bounds, 'outputs', mode)
+        elif mode.startswith('one_hot_partial_top_'):
+            self.encode_equivalence_from_file(reference_nn, test_nn, input_lower_bounds, input_upper_bounds, mode, mode)
+
+
+
+
     def add_input_radius(self, center, radius, metric='manhattan', radius_mode='constant', radius_lo=0):
         '''
         Constrains input values, s.t. they have to be within a circle around a specified center
