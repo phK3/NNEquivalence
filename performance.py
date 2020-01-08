@@ -193,6 +193,8 @@ class Encoder:
         :return:
         '''
 
+        self.radius_mode = radius_mode
+
         def add_absolute_value_constraints(radius, dimension, netPrefix, centered_inputs):
             ineqs = []
             additional_vars = []
@@ -231,7 +233,6 @@ class Encoder:
         if not len(center) == dim:
             raise ValueError('Center has dimension {cdim}, but input has dimension {idim}'.format(cdim=len(center),
                                                                                                 idim=dim))
-        self.radius_mode = radius_mode
 
         for i, invar in enumerate(invars):
             invar.update_bounds(center[i] - radius, center[i] + radius)
