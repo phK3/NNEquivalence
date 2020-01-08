@@ -236,8 +236,8 @@ class Encoder:
             r.update_bounds(float(radius_lo), float(radius))
             additional_vars.append(r)
 
-            diff = self.equivalence_layer.get_outvars()[0]
-            additional_ineqs.append(Geq(diff, Constant(fc.not_equiv_tolerance , netPrefix, 0, 0)))
+            diff = self.equivalence_layer.get_outvars()[-1]
+            additional_ineqs.append(Geq(diff, Constant(fc.not_equiv_tolerance, netPrefix, 0, 0)))
             #additional_ineqs.append(Geq(diff, Constant(0, netPrefix, 0, 0)))
         else:
             raise ValueError('radius_mode: {} is not supported!'.format(radius_mode))
