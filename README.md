@@ -9,6 +9,8 @@ The tool is written in Python 3.6
 This tool uses version 8.1.1 of the Gurobi solver to solve the resulting MILP instances.
 The website of Gurobi can be found [here](https://www.gurobi.com/ "Gurobi Website"), they offer free academic licenses for their software.
 
+We recommend also using version 8.1.1 of Gurobi for this tool. For version 9.0 an annoying error occurs, that doesn't seem to have any effect, but it's error message is printed every time, a command in the console is executed.
+
 Instructions on how the gurobipy module can be installed can be found at the end of the [quickstart guide](https://www.gurobi.com/documentation/8.1/quickstart_mac/py_building_and_running_th.html).
 
 Several other python modules are needed, in order to use all functionality. 
