@@ -108,6 +108,9 @@ class Encoder:
         self.input_layer = None
         self.equivalence_layer = None
 
+        self.equiv_mode = None
+        self.radius_mode = None
+
         self.opt_timeout = 20
 
     def set_opt_timeout(self, new_val):
@@ -123,6 +126,38 @@ class Encoder:
 
         num_neurons = len(lower_bounds)
         return InputLayer(num_neurons, vars)
+
+    def pretty_print(self):
+        pretty_print(self.get_vars(), self.get_constraints())
+
+    def create_gurobi_model(self):
+        """
+        Creates gurobi model as specified by constraints added through the methods encode_equivalence or
+        encode_equivalence_from_file and add_input_radius.
+
+        :return: A gurobi model of the equivalence property encoded
+        """
+        if not self.equiv_mode:
+            raise ValueError('No equivalence mode specified!')
+
+        r_str = self.radius_mode
+        if not self.radius_mode:
+            r_str = ''
+
+        model = create_gurobi_model(self.get_vars(), self.get_constraints())
+
+        if r_str == 'variable':
+            r = model.getVarByName('r_0_0')
+            model.setObjective(r, grb.GRB.MINIMIZE)
+        elif self.equiv_mode.startswith('one_hot_partial_top_'):
+            k = self.equiv_mode.split('_')[-1]
+            diff = model.getVarByName('E_diff_0_' + k)
+            model.setObjective(diff, grb.GRB.MAXIMIZE)
+        elif self.equiv_mode.startswith('optimize_diff_'):
+            diff = model.getVarByName('E_norm_1_0')
+            model.setObjective(diff, grb.GRB.MAXIMIZE)
+
+        return model
 
     def add_input_radius(self, center, radius, metric='manhattan', radius_mode='constant', radius_lo=0):
         '''
@@ -183,6 +218,7 @@ class Encoder:
         if not len(center) == dim:
             raise ValueError('Center has dimension {cdim}, but input has dimension {idim}'.format(cdim=len(center),
                                                                                                 idim=dim))
+        self.radius_mode = radius_mode
 
         for i, invar in enumerate(invars):
             invar.update_bounds(center[i] - radius, center[i] + radius)
@@ -478,6 +514,7 @@ class Encoder:
         :return: encoding of the equivalence of NN1 and NN2 as a set of variables and
             mixed integer linear programming constraints
         '''
+        self.equiv_mode = comparator
 
         layers1, layers2 = self.append_compare_layer(layers1, layers2, compared)
         mode1, mode2 = self.determine_output_modes(compared)
