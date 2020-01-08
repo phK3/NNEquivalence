@@ -1,16 +1,10 @@
 from abc import ABC, abstractmethod
 from numpy import format_float_positional
 import numbers
+import flags_constants as fc
 import gurobipy as grb
 
-# controls, if gurobi general constraints are used
-# (right now only for binary multiplication)
-# TODO: extend to ReLU, Max, ...
-use_grb_native = True
 
-# 999999 1e-8
-default_bound = 999999
-epsilon = 1e-8
 
 def ffp(x):
     if x < 0:
@@ -48,8 +42,8 @@ def makeGt(lhs, rhs):
 class Expression(ABC):
 
     def __init__(self, net, layer, row):
-        self.lo = -default_bound
-        self.hi = default_bound
+        self.lo = -fc.default_bound
+        self.hi = fc.default_bound
         self.hasLo = False
         self.hasHi = False
 
@@ -77,10 +71,10 @@ class Expression(ABC):
         return self.lo
 
     def getLo_exclusive(self):
-        return self.lo - epsilon
+        return self.lo - fc.epsilon
 
     def getHi_exclusive(self):
-        return self.hi + epsilon
+        return self.hi + fc.epsilon
 
     @abstractmethod
     def tighten_interval(self):
@@ -143,8 +137,8 @@ class Variable(Expression):
 
         self.hasLo = False
         self.hasHi = False
-        self.lo = -default_bound
-        self.hi = default_bound
+        self.lo = -fc.default_bound
+        self.hi = fc.default_bound
 
         self.has_grb_var = False
         self.grb_var = None
@@ -206,8 +200,8 @@ class Sum(Expression):
         net, layer, row = terms[0].getIndex()
         super(Sum, self).__init__(net, layer, row)
         self.children = terms
-        self.lo = -default_bound
-        self.hi = default_bound
+        self.lo = -fc.default_bound
+        self.hi = fc.default_bound
 
     def tighten_interval(self):
         l = 0
@@ -272,8 +266,8 @@ class Multiplication(Expression):
         super(Multiplication, self).__init__(net, layer, row)
         self.constant = constant
         self.variable = variable
-        self.lo = -default_bound
-        self.hi = default_bound
+        self.lo = -fc.default_bound
+        self.hi = fc.default_bound
 
     def tighten_interval(self):
         val1 = self.constant.value * self.variable.getLo()
@@ -332,7 +326,7 @@ class Relu(Expression):
         self.output.setLo(0)
         self.input = input
         self.lo = 0
-        self.hi = default_bound
+        self.hi = fc.default_bound
         self.delta = delta
         self.delta.setLo(0)
         self.delta.setHi(1)
@@ -376,18 +370,44 @@ class Relu(Expression):
     def to_gurobi(self, model):
         c_name = 'ReLU_{n}_{layer}_{row}'.format(n=self.net, layer=self.layer, row=self.row)
         ret_constr = None
-        if use_grb_native:
+
+        if self.input.getLo() >= 0:
+            # relu must be active
+            ret_constr = model.addConstr(self.output.to_gurobi(model) == self.input.to_gurobi(model), name=c_name)
+        elif self.input.getHi() <= 0:
+            # relu must be inactive
+            ret_constr = model.addConstr(self.output.to_gurobi(model) == 0, name=c_name)
+        elif fc.use_grb_native:
             ret_constr = model.addConstr(self.output.to_gurobi(model) == grb.max_(self.input.to_gurobi(model), 0), name=c_name)
-        else:
-            bigM = self.input.getHi()
+        elif fc.use_asymmetric_bounds:
             model.addConstr(self.output.to_gurobi(model) >= 0, name=c_name + '_a')
             model.addConstr(self.output.to_gurobi(model) >= self.input.to_gurobi(model), name=c_name + '_b')
-            model.addConstr(self.input.to_gurobi(model) - bigM * self.delta.to_gurobi(model) <= 0, name=c_name + '_c')
+
+            M_input = self.input.getHi()
+            m_input = self.input.getLo()
+            model.addConstr(self.input.to_gurobi(model) - M_input * self.delta.to_gurobi(model) <= 0, name=c_name + '_c')
+            model.addConstr(self.input.to_gurobi(model) + (1 - self.delta.to_gurobi(model)) * -m_input
+                            >= 0, name=c_name + '_d')
+
+            M_active = max(abs(self.input.getLo()), abs(self.input.getHi()))
+            model.addConstr(self.output.to_gurobi(model)
+                            <= self.input.to_gurobi(model) + (1 - self.delta.to_gurobi(model)) * M_active, name=c_name + '_e')
+
+            M_output = self.output.getHi()
+            ret_constr = model.addConstr(self.output.to_gurobi(model) <= self.delta.to_gurobi(model) * M_output, name=c_name + '_f')
+        else:
+            bigM = max(abs(self.input.getLo()), abs(self.input.getHi()))
+            model.addConstr(self.output.to_gurobi(model) >= 0, name=c_name + '_a')
+            model.addConstr(self.output.to_gurobi(model) >= self.input.to_gurobi(model), name=c_name + '_b')
+            model.addConstr(self.input.to_gurobi(model) - bigM * self.delta.to_gurobi(model) <= 0,
+                            name=c_name + '_c')
             model.addConstr(self.input.to_gurobi(model) + (1 - self.delta.to_gurobi(model)) * bigM
                             >= 0, name=c_name + '_d')
             model.addConstr(self.output.to_gurobi(model)
-                            <= self.input.to_gurobi(model) + (1 - self.delta.to_gurobi(model)) * bigM, name=c_name + '_e')
-            ret_constr = model.addConstr(self.output.to_gurobi(model) <= self.delta.to_gurobi(model) * bigM, name=c_name + '_f')
+                            <= self.input.to_gurobi(model) + (1 - self.delta.to_gurobi(model)) * bigM,
+                            name=c_name + '_e')
+            ret_constr = model.addConstr(self.output.to_gurobi(model) <= self.delta.to_gurobi(model) * bigM,
+                                         name=c_name + '_f')
         return ret_constr
 
 
@@ -403,8 +423,8 @@ class Max(Expression):
         self.output = output
         self.in_a = in_a
         self.in_b = in_b
-        self.lo = -default_bound
-        self.hi = default_bound
+        self.lo = -fc.default_bound
+        self.hi = fc.default_bound
         self.delta = delta
         self.delta.setLo(0)
         self.delta.setHi(1)
@@ -503,7 +523,7 @@ class One_hot(Expression):
 
         # convert to greater than
         # normal (hi * output) - eps >= ... doesn't work
-        c1 = model.addConstr(h_i * (self.output.to_gurobi(model) - epsilon) >= self.input.to_gurobi(model), name=c_name + '_a')
+        c1 = model.addConstr(h_i * (self.output.to_gurobi(model) - fc.epsilon) >= self.input.to_gurobi(model), name=c_name + '_a')
         c2 = model.addConstr(self.input.to_gurobi(model) >= (1 - self.output.to_gurobi(model)) * l_i, name=c_name + '_b')
 
         return c1, c2
@@ -559,7 +579,7 @@ class Greater_Zero(Expression):
         c1 = model.addConstr(self.lhs.to_gurobi(model) <= h * self.delta.to_gurobi(model), name=c_name + '_a')
         # convert to greater than
         # with epsilon otherwise, when lhs == 0, delta == 1 would also be ok, with epsilon forced to take 0
-        c2 = model.addConstr(self.lhs.to_gurobi(model) - epsilon >= (1 - self.delta.to_gurobi(model)) * l, name=c_name + '_b')
+        c2 = model.addConstr(self.lhs.to_gurobi(model) - fc.epsilon >= (1 - self.delta.to_gurobi(model)) * l, name=c_name + '_b')
 
         return c1, c2
 
@@ -623,7 +643,7 @@ class Gt_Int(Expression):
     def to_gurobi(self, model):
         c_name = 'Gt_Int_{layer}_{row}'.format(layer=self.layer, row=self.row)
 
-        if use_grb_native:
+        if fc.use_grb_native:
             c1 = model.addConstr((self.delta.to_gurobi(model) == 1)
                                  >> (self.lhs.to_gurobi(model) - self.rhs.to_gurobi(model) >= 1), name=c_name + '_a')
             c2 = model.addConstr((self.delta.to_gurobi(model) == 0)
@@ -666,7 +686,7 @@ class Geq(Expression):
         hrhs = self.rhs.getHi()
 
         if hrhs > hlhs:
-            self.rhs.update_bounds(hrhs, hlhs)
+            self.rhs.update_bounds(lrhs, hlhs)
 
         if lrhs > llhs:
             self.lhs.update_bounds(lrhs, hlhs)
@@ -698,8 +718,8 @@ class BinMult(Expression):
         self.binvar.setHi(1)
         self.factor = factor
         self.result_var = result_var
-        self.lo = -default_bound
-        self.hi = default_bound
+        self.lo = -fc.default_bound
+        self.hi = fc.default_bound
 
     def tighten_interval(self):
         self.factor.tighten_interval()
@@ -734,20 +754,25 @@ class BinMult(Expression):
 
         ret_constr = None
 
-        if use_grb_native:
+        if fc.use_grb_native:
             model.addConstr((self.binvar.to_gurobi(model) == 0) >> (self.result_var.to_gurobi(model) == 0), name=c_name + '_1')
             ret_constr = model.addConstr((self.binvar.to_gurobi(model) == 1)
                                          >> (self.result_var.to_gurobi(model) == self.factor.to_gurobi(model)), name=c_name + '_2')
         else:
-            bigM = self.factor.getHi()
+            M_res = self.result_var.getHi()
+            m_res = self.result_var.getLo()
+            model.addConstr(self.result_var.to_gurobi(model) <= M_res * self.binvar.to_gurobi(model),
+                            name=c_name + '_y<=0')
+            model.addConstr(self.result_var.to_gurobi(model) >= m_res * self.binvar.to_gurobi(model),
+                            name=c_name + '_y>=0')
 
-            model.addConstr(self.result_var.to_gurobi(model) <= bigM * self.binvar.to_gurobi(model), name=c_name + '_1')
-            model.addConstr(self.factor.to_gurobi(model) - self.result_var.to_gurobi(model)
-                            <= (1 - self.binvar.to_gurobi(model)) * bigM, name=c_name + '_2')
-            ret_constr = model.addConstr(self.result_var.to_gurobi(model) <= self.factor.to_gurobi(model), name=c_name + '_3')
-
-            smallM = self.factor.getLo()
-            model.addConstr(self.result_var.to_gurobi(model) >= smallM * self.binvar.to_gurobi(model), name=c_name + '_4')
+            # upper and lower bounds of res_var - factor
+            M = self.result_var.getHi() - self.factor.getLo()
+            m = self.result_var.getLo() - self.factor.getHi()
+            model.addConstr(self.result_var.to_gurobi(model) - self.factor.to_gurobi(model)
+                            <= M * (1 - self.binvar.to_gurobi(model)), name=c_name + '_y<=x')
+            ret_constr = model.addConstr(self.result_var.to_gurobi(model) - self.factor.to_gurobi(model)
+                                         >= m * (1 - self.binvar.to_gurobi(model)), name=c_name + '_y>=x')
 
         # return last added constraint, don't know what to return instead and all other to_gurobis return a constraint
         return ret_constr
@@ -804,12 +829,12 @@ class Impl(Expression):
 
         ret_constr = None
 
-        if use_grb_native:
+        if fc.use_grb_native:
             ret_constr = model.addConstr((self.delta.to_gurobi(model) == self.constant)
-                                         >> (self.lhs.to_gurobi(model) <= self.rhs.to_gurobi(model)),
-                            name=c_name)
+                                         >> (self.lhs.to_gurobi(model) <= self.rhs.to_gurobi(model)), name=c_name)
         else:
             term = Sum([self.lhs, Neg(self.rhs)])
+            term.tighten_interval()
             bigM = term.getHi()
 
             if self.constant == 0:
@@ -822,3 +847,243 @@ class Impl(Expression):
     def __repr__(self):
         return '{d} = {c} --> {left} <= {right}'.format(d=str(self.delta),
                                                         c=str(self.constant), left=str(self.lhs), right=str(self.rhs))
+
+
+class IndicatorToggle(Expression):
+    # sets diff_i = term_i, if indicator = constant, otherwise diff_i <= min(x_is)
+
+    def __init__(self, indicators, constant, terms, diffs):
+        net, layer, row = indicators[0].getIndex()
+        super(IndicatorToggle, self).__init__(net, layer, row)
+        self.indicators = indicators
+        for indicator in self.indicators:
+            indicator.setLo(0)
+            indicator.setHi(1)
+        self.constant = constant
+        self.terms = terms
+        self.diffs = diffs
+        self.lo = -fc.default_bound
+        self.hi = fc.default_bound
+        self.terms_lo = -fc.default_bound
+
+    def tighten_interval(self):
+        terms_lo_new = fc.default_bound
+        max_hi = -fc.default_bound
+        max_lo = fc.default_bound
+        # TODO: take indicators into account
+        for t, d in zip(self.terms, self.diffs):
+            t.tighten_interval()
+            tlo = t.getLo()
+            thi = t.getHi()
+            d.update_bounds(-fc.default_bound, thi)
+            # was intended to calc max directly, but put got other idea
+            # self.update_bounds(max_lo, max_hi)
+            if tlo < terms_lo_new:
+                terms_lo_new = tlo
+
+        if terms_lo_new > self.terms_lo:
+            self.terms_lo = terms_lo_new
+
+        for d in self.diffs:
+            d.update_bounds(self.terms_lo, fc.default_bound)
+
+    def to_smtlib(self):
+        enc = []
+        bigL = Constant(self.terms_lo, self.net, self.layer, self.row)
+        for t, ind, diff in zip(self.terms, self.indicators, self.diffs):
+            enc_i = Impl(ind, self.constant, t, diff).to_smtlib()
+            enc_i += '\n' + Impl(ind, self.constant, diff, t).to_smtlib()
+            enc_i += '\n' + Impl(ind, 1 - self.constant, bigL, diff).to_smtlib()
+            enc_i += '\n' + Impl(ind, 1 - self.constant, diff, bigL).to_smtlib()
+            enc.append(enc_i)
+
+        return '\n'.join(enc)
+
+    def to_gurobi(self, model):
+        ret_constr = None
+
+        bigL = Constant(self.terms_lo, self.net, self.layer, self.row)
+        for t, ind, diff in zip(self.terms, self.indicators, self.diffs):
+            Impl(ind, self.constant, t, diff).to_gurobi(model)
+            Impl(ind, self.constant, diff, t).to_gurobi(model)
+            # somehow Impl(..., bigL, diff) yields invalid sense for indicator constraint
+            Impl(ind, (1 - self.constant), Neg(diff), Neg(bigL)).to_gurobi(model)
+            ret_constr = Impl(ind, 1 - self.constant, diff, bigL).to_gurobi(model)
+
+        return ret_constr
+
+    def __repr__(self):
+        reps = []
+        for t, ind, diff in zip(self.terms, self.indicators, self.diffs):
+            reps.append('{d} = {c} --> {left} = {right}'.format(d=str(ind), c=str(self.constant), left=str(diff),
+                                                                right=str(t)))
+            reps.append('{d} = {c} --> {left} = {right}'.format(d=str(ind), c=str(1 - self.constant), left=str(diff),
+                                                                right=str(self.terms_lo)))
+        return '\n'.join(reps)
+
+
+class Abs(Expression):
+
+    def __init__(self, input, output, delta):
+        net, layer, row = output.getIndex()
+        super(Abs, self).__init__(net, layer, row)
+        self.output = output
+        self.output.setLo(0)
+        self.input = input
+        self.lo = 0
+        self.hi = fc.default_bound
+        self.delta = delta
+        self.delta.setLo(0)
+        self.delta.setHi(1)
+
+    def tighten_interval(self):
+        self.input.tighten_interval()
+        h = self.input.getHi()
+        l = self.input.getLo()
+
+        if h <= 0:
+            # input less than 0 -> delta=0
+            self.update_bounds(-h, -l)
+            self.output.update_bounds(-h, -l)
+            self.delta.update_bounds(0,0)
+        elif l > 0:
+            # input greater than 0 -> delta=1
+            self.update_bounds(l, h)
+            self.output.update_bounds(l, h)
+            self.delta.update_bounds(1,1)
+        else:
+            # don't know if inputs is greater or less than 0
+            new_hi = max(abs(h), abs(l))
+            self.update_bounds(0, new_hi)
+            self.output.update_bounds(0, new_hi)
+
+    def to_smtlib(self):
+        # maybe better with asymmetric bounds
+        m = 2*max(abs(self.input.getLo()), abs(self.input.getHi()))
+
+        dm = Multiplication(Constant(m, self.net, self.layer, self.row), self.delta)
+        inOneMinusDM = Sum([self.input, Constant(m, self.net, self.layer, self.row), Neg(dm)])
+
+        enc  = makeGeq(self.output.to_smtlib(), Neg(self.input).to_smtlib())
+        enc += '\n' + makeGeq(self.output.to_smtlib(), self.input.to_smtlib())
+        enc += '\n' + makeLeq(self.output.to_smtlib(), Sum([Neg(self.input), Neg(dm)]).to_smtlib())
+        enc += '\n' + makeLeq(self.output.to_smtlib(), inOneMinusDM.to_smtlib())
+
+        return enc
+
+    def to_gurobi(self, model):
+        c_name = 'Abs_{n}_{layer}_{row}'.format(n=self.net, layer=self.layer, row=self.row)
+        ret_constr = None
+
+        if self.input.getLo() >= 0:
+            # input is positive
+            ret_constr = model.addConstr(self.output.to_gurobi(model) == self.input.to_gurobi(model), name=c_name)
+        elif self.input.getHi() <= 0:
+            # inputs is negative
+            ret_constr = model.addConstr(self.output.to_gurobi(model) == - self.input.to_gurobi(model), name=c_name)
+        elif fc.use_grb_native:
+            ret_constr = model.addConstr(self.output.to_gurobi(model) == grb.abs_(self.input.to_gurobi(model)), name=c_name)
+        else:
+            out_bound = max(abs(self.input.getLo()), abs(self.input.getHi()))
+            bigM1 = out_bound + self.input.getHi()
+            bigM2 = out_bound - self.input.getLo()
+            model.addConstr(self.output.to_gurobi(model) >= - self.input.to_gurobi(model), name=c_name + '_a')
+            model.addConstr(self.output.to_gurobi(model) >= self.input.to_gurobi(model), name=c_name + '_b')
+            model.addConstr(self.output.to_gurobi(model)
+                            <= - self.input.to_gurobi(model) + self.delta.to_gurobi(model) * bigM1, name=c_name + '_c')
+            ret_constr = model.addConstr(self.output.to_gurobi(model)
+                            <= self.input.to_gurobi(model) + (1 - self.delta.to_gurobi(model)) * bigM2, name=c_name + '_c')
+
+        return ret_constr
+
+
+    def __repr__(self):
+        return str(self.output) + ' =  |' + str(self.input) + '|'
+
+
+
+class TopKGroup(Expression):
+    # performs bounds tightening, s.t. bounds for element are updated to the bounds of the top-k element
+
+    def __init__(self, out, ins, k):
+        '''
+        Initializes TopK context group. After call to tighten_interval(), the output element's bounds are
+        tightened to the k-greatest upper bound and the k-greatest lower bound (with k starting from 1 for the
+        greatest element)
+        :param out: the output element
+        :param ins: list of input elements
+        :param k: 1 - for the greatest element, ... k - for the k-greatest element
+        '''
+        net, layer, row = out.getIndex()
+        super(TopKGroup, self).__init__(net, layer, row)
+        self.ins = ins
+        self.k = k
+        self.out = out
+        self.out.update_bounds(-fc.default_bound, fc.default_bound)
+        self.lo = self.out.getLo()
+        self.hi = self.out.getHi()
+
+    def tighten_interval(self):
+        for i in self.ins:
+            i.tighten_interval()
+        self.out.tighten_interval()
+
+        in_lo = sorted(self.ins, key=lambda x: x.getLo())[-self.k].getLo()
+        in_hi = sorted(self.ins, key=lambda x: x.getHi())[-self.k].getHi()
+        self.out.update_bounds(in_lo, in_hi)
+        self.update_bounds(in_lo, in_hi)
+
+    def to_smtlib(self):
+        return ''
+
+    def to_gurobi(self, model):
+        return None
+
+    def __repr__(self):
+        in_rep = []
+        for i in self.ins:
+            in_rep.append(str(i))
+
+        return '{o} in top_{k}({irs})'.format(o=str(self.out), k=self.k, irs=', '.join(in_rep))
+
+
+class ExtremeGroup(Expression):
+    # performs bounds tightening, s.t. bounds for element are updated to the most extreme bounds in the input values
+
+    def __init__(self, out, ins):
+        '''
+        Initializes Extreme context group. After call to tighten_interval(), the output element's bounds are
+        tightened to the greatest upper bound and the smallest lower bound amongst all input elements
+        :param out: the output element
+        :param ins: list of input elements
+        '''
+        net, layer, row = out.getIndex()
+        super(ExtremeGroup, self).__init__(net, layer, row)
+        self.ins = ins
+        self.out = out
+        self.out.update_bounds(-fc.default_bound, fc.default_bound)
+        self.lo = self.out.getLo()
+        self.hi = self.out.getHi()
+
+    def tighten_interval(self):
+        for i in self.ins:
+            i.tighten_interval()
+        self.out.tighten_interval()
+
+        in_lo = sorted(self.ins, key=lambda x: x.getLo())[0].getLo()
+        in_hi = sorted(self.ins, key=lambda x: x.getHi())[-1].getHi()
+        self.out.update_bounds(in_lo, in_hi)
+        self.update_bounds(in_lo, in_hi)
+
+    def to_smtlib(self):
+        return ''
+
+    def to_gurobi(self, model):
+        return None
+
+    def __repr__(self):
+        in_rep = []
+        for i in self.ins:
+            in_rep.append(str(i))
+
+        return '{o} in extreme({irs})'.format(o=str(self.out), irs=', '.join(in_rep))

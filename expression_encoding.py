@@ -1,14 +1,10 @@
 
 from expression import Variable, Linear, Relu, Max, Multiplication, Constant, Sum, Neg, One_hot, Greater_Zero, \
-    Geq, BinMult, Gt_Int, Impl
+    Geq, BinMult, Gt_Int, Impl, IndicatorToggle, TopKGroup, ExtremeGroup, Abs
 from keras_loader import KerasLoader
 import gurobipy as grb
 import datetime
-
-# set this flag to only print bounds for deltas and inputs
-# (for smtlib format)
-hide_non_deltas = True
-
+import flags_constants as fc
 
 def flatten(collection):
     for x in collection:
@@ -143,7 +139,7 @@ def encode_binmult_matrix(prev_neurons, layerIndex, netPrefix, matrix, outs):
     lin_constrs = []
     permute_constrs = []
 
-    for i in range(len(prev_neurons)):
+    for i in range(len(outs)):
         res_vars_i = []
         for j, neuron in enumerate(prev_neurons):
             y = Variable(j, i, netPrefix, 'y')
@@ -190,6 +186,80 @@ def encode_ranking_layer(prev_neurons, layerIndex, netPrefix):
 
     constraints = permute_constrs + order_constrs
     return permute_matrix, (res_vars + outs), constraints
+
+
+def encode_partial_layer(top_k, prev_neurons, layerIndex, netPrefix):
+    order_constrs = []
+
+    n = len(prev_neurons)
+    outs = [Variable(layerIndex, i, netPrefix, 'o') for i in range(top_k)]
+    # !!! careful, because NN rows and columns in index are swapped
+    # p_ij in matrix, but p_j_i in printed output
+    # but for calculation permute matrix is stored as array of rows (as in math)
+    partial_matrix = [[Variable(j, i, netPrefix, 'pi', type='Int') for j in range(n)] for i in range(top_k)]
+
+    # perm_matrix * prev_neurons = outs
+    res_vars, permute_constrs = encode_binmult_matrix(prev_neurons, layerIndex, netPrefix, partial_matrix, outs)
+
+    # almost doubly stochastic
+    one = Constant(1, netPrefix, layerIndex, 0)
+    for i in range(top_k):
+        # row stochastic
+        permute_constrs.append(Linear(Sum(partial_matrix[i]), one))
+
+    set_vars = []
+    for j in range(len(prev_neurons)):
+        # almost column stochastic (<= 1)
+        s = Variable(layerIndex, j, netPrefix, 'set', type='Int')
+        set_vars.append(s)
+        permute_constrs.append(Linear(Sum([p[j] for p in partial_matrix]), s))
+        permute_constrs.append(Geq(one, s))
+
+    # o_i >= o_i+1 (for top_k)
+    for o, o_next in zip(outs, outs[1:]):
+        order_constrs.append(Geq(o, o_next))
+
+    # x_i <= o_k-1 for all i, that are not inside top_k
+    for i, s in enumerate(set_vars):
+        order_constrs.append(Impl(s, 0, prev_neurons[i], outs[-1]))
+
+    constraints = permute_constrs + order_constrs
+    return [partial_matrix, set_vars], (res_vars + outs), constraints
+
+
+def encode_sort_one_hot_layer(prev_neurons, layerIndex, netPrefix, mode):
+    n = len(prev_neurons)
+    one_hot_vec = [Variable(layerIndex, i, netPrefix, 'pi', type='Int') for i in range(n)]
+
+    top = Variable(layerIndex, 0, netPrefix, 'top')
+    # one_hot_vec and top need to be enclosed in [], so that indexing in binmult_matrix works
+    res_vars, mat_constrs = encode_binmult_matrix(prev_neurons, 0, netPrefix, [one_hot_vec], [top])
+
+    oh_constraint = Linear(Sum(one_hot_vec), Constant(1, netPrefix, layerIndex, 0))
+
+    if fc.use_eps_maximum:
+        eps = Constant(fc.epsilon, netPrefix, layerIndex, 0)
+        order_constrs = [Impl(pi, 0, Sum([neuron, eps]), top) for neuron, pi in zip(prev_neurons, one_hot_vec)]
+        pretty_print([], order_constrs)
+    else:
+        order_constrs = [Geq(top, neuron) for neuron in prev_neurons]
+
+    if fc.use_context_groups:
+        context = TopKGroup(top, prev_neurons, 1)
+        order_constrs.append(context)
+
+    outs = None
+    vars = None
+    if mode == 'vector':
+        outs = one_hot_vec
+        vars = res_vars + [top]
+    elif mode == 'out':
+        outs = [top]
+        vars = res_vars + one_hot_vec
+    else:
+        raise ValueError('Unknown mode for encoding of sort_one_hot layer: {name}'.format(name=mode))
+
+    return outs, vars, [oh_constraint] + mat_constrs + order_constrs
 
 
 def hasLinear(activation):
@@ -242,25 +312,61 @@ def encode_layers(input_vars, layers, net_prefix):
 
                 invars = rank_perms
 
+            if activation.startswith('partial_'):
+                top_k = int(activation.split('_')[-1])
+                vectors, rank_vars, rank_constraints = encode_partial_layer(top_k, invars, i, net_prefix)
+                vars.append(rank_vars)
+                # vectors is [partial_matrix (k rows, invers cols), set-vector (1 <-> s_i not amongst top k)]
+                vars.append(vectors)
+                constraints.append(rank_constraints)
+
+                invars = vectors
+
+            if activation.startswith('sort_one_hot_'):
+                #modes 'vector' and 'out' are allowed and define what is returned as out
+                mode = activation.split('_')[-1]
+                oh_outs, oh_vars, oh_constraints = encode_sort_one_hot_layer(invars, i, net_prefix, mode)
+                vars.append(oh_vars)
+                vars.append(oh_outs)
+                constraints.append(oh_constraints)
+
+                invars = oh_outs
+
     return vars, constraints
 
 
 def encodeNN(layers, input_lower_bounds, input_upper_bounds, net_prefix, mode='normal'):
     if mode == 'one_hot':
         _, num_outs, _ = layers[-1]
-
         oh_layer = ('one_hot', num_outs, None)
         layers.append(oh_layer)
     elif mode == 'ranking':
         _, num_outs, _ = layers[-1]
         ranking_layer = ('ranking', num_outs, None)
         layers.append(ranking_layer)
+    elif mode.startswith('partial_'):
+        _, num_outs, _ = layers[-1]
+        partial_layer = (mode, num_outs, None)
+        layers.append(partial_layer)
+    elif mode.startswith('sort_one_hot_'):
+        _, num_outs, _ = layers[-1]
+        oh_layer = (mode, num_outs, None)
+        layers.append(oh_layer)
+    elif not mode == 'normal':
+        raise ValueError('Invalid mode for NN encoding: {name}'.format(name=mode))
 
     invars = encode_inputs(input_lower_bounds, input_upper_bounds)
 
     layer_vars, layer_constrains = encode_layers(invars, layers, net_prefix)
 
     return [invars] + layer_vars, layer_constrains
+
+
+def encode_NN_from_file(file_name, input_lower_bounds, input_upper_bounds, net_prefix, mode='normal'):
+    kl = KerasLoader()
+    kl.load(file_name)
+
+    return encodeNN(kl.getHiddenLayers(), input_lower_bounds, input_upper_bounds, net_prefix, mode)
 
 
 def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
@@ -384,6 +490,54 @@ def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
             constraints += n_constraints
 
         constraints.append(Geq(Sum(deltas), Constant(1, 'E', 1, 0)))
+    elif mode in ['optimize_diff', 'optimize_diff_manhattan', 'optimize_diff_chebyshev']:
+        for i, (out1, out2) in enumerate(zip(outs1, outs2)):
+            diff_i = Variable(0, i, 'E', 'diff')
+            constraints.append(Linear(Sum([out1, Neg(out2)]), diff_i))
+
+            diffs.append(diff_i)
+
+        # will continue to be either optimize_diff_manhattan or ..._chebyshev
+        if mode.startswith('optimize_diff_'):
+            abs_vals = []
+            for i, diff in enumerate(diffs):
+                abs_val_i = Variable(0, i, 'E', 'abs_d')
+                abs_vals.append(abs_val_i)
+
+                delta_i = Variable(0, i, 'E', 'd', 'Int')
+                delta_i.update_bounds(0, 1)
+                deltas.append(delta_i)
+
+                constraints.append(Abs(diff, abs_val_i, delta_i))
+
+            diffs.append(abs_vals)
+
+            if mode == 'optimize_diff_manhattan':
+                norm = Variable(1, 0, 'E', 'norm')
+
+                constraints.append(Linear(Sum(abs_vals), norm))
+
+                diffs.append(norm)
+
+            elif mode == 'optimize_diff_chebyshev':
+                partial_matrix, partial_vars, partial_constrs = encode_partial_layer(1, abs_vals, 1, 'E')
+                diffs.append(partial_vars)
+                constraints.append(partial_constrs)
+                deltas.append(partial_matrix)
+
+                context_constraints = []
+                if fc.use_context_groups:
+                    # partial_vars = ([E_y_ij, ...] + [E_o_1_0])
+                    context_constraints.append(TopKGroup(partial_vars[-1], abs_vals, 1))
+
+                constraints.append(context_constraints)
+
+                # only for interface to norm optimization, otherwise would have to optimize E_o_1_0
+                norm = Variable(1, 0, 'E', 'norm')
+                constraints.append(Linear(partial_vars[-1], norm))
+
+                diffs.append(norm)
+
     elif mode == 'diff_one_hot':
         # requires that outs_i are the pi_1_js in of the respective permutation matrices
         # or input to this layer are one-hot vectors
@@ -441,6 +595,88 @@ def encode_equivalence_layer(outs1, outs2, mode='diff_zero'):
 
         constraints = mat_constrs + order_constrs
         deltas = res_vars + ordered2
+    elif mode.startswith('partial_top_'):
+        # assumes outs1 = [partial matrix, set-var] of NN1
+        # assumes outs2 = outputs of NN2
+        partial_matrix = outs1[0]
+        one_hot_vec = partial_matrix[0]
+        set_var = outs1[1]
+
+        top = Variable(0, 0, 'E', 'top')
+        # one_hot_vec and top need to be enclosed in [], so that indexing in binmult_matrix works
+        res_vars, mat_constrs = encode_binmult_matrix(outs2, 0, 'E', [one_hot_vec], [top])
+
+        order_constrs = []
+        for i in range(len(outs2)):
+            order_constrs.append(Impl(set_var[i], 0, Sum([outs2[i], Neg(top)]), Constant(0, 'E', 0, 0)))
+
+        constraints = mat_constrs + order_constrs
+        deltas = res_vars
+        diffs = [top]
+    elif mode.startswith('optimize_partial_top_'):
+        # assumes outs1 = [partial matrix, set-var] of NN1
+        # assumes outs2 = outputs of NN2
+        partial_matrix = outs1[0]
+        one_hot_vec = partial_matrix[0]
+        set_var = outs1[1]
+
+        top = Variable(0, 0, 'E', 'top')
+        # one_hot_vec and top need to be enclosed in [], so that indexing in binmult_matrix works
+        res_vars, mat_constrs = encode_binmult_matrix(outs2, 0, 'E', [one_hot_vec], [top])
+
+        order_constrs = []
+        diffs = [Variable(0, i, 'E', 'diff') for i in range(len(outs2))]
+        order_constrs.append(IndicatorToggle(set_var, 0, [Sum([outs2[i], Neg(top)]) for i in range(len(outs2))], diffs))
+
+        max_diff_vec = [Variable(1, i, 'E', 'pi', 'Int') for i in range(len(diffs))]
+        max_diff = Variable(1, 0, 'E', 'max_diff')
+        res_vars2, mat_constrs2 = encode_binmult_matrix(diffs, 1, 'Emax', [max_diff_vec], [max_diff])
+        for diff in diffs:
+            order_constrs.append(Geq(max_diff, diff))
+
+        diffs.append(max_diff)
+
+        constraints = mat_constrs + order_constrs + mat_constrs2
+        deltas = res_vars + [top] + max_diff_vec + res_vars2
+
+    elif mode.startswith('one_hot_partial_top_'):
+        k = int(mode.split('_')[-1])
+        # assumes outs1 = one hot vector of NN1
+        # assumes outs2 = output of NN2
+        one_hot_vec = outs1
+
+        top = Variable(0, 0, 'E', 'top')
+        # one_hot_vec and top need to be enclosed in [], so that indexing in binmult_matrix works
+        res_vars, mat_constrs = encode_binmult_matrix(outs2, 0, 'Eoh', [one_hot_vec], [top])
+
+        partial_matrix, partial_vars, partial_constrs = encode_partial_layer(k, outs2, 1, 'E')
+
+        context_constraints = []
+        if fc.use_context_groups:
+            context_constraints.append(ExtremeGroup(top, outs2))
+            # partial_vars = ([E_y_ij, ...] + [E_o_1_0, E_o_1_1, ..., E_o_1_(k-1)])
+            for i in range(1, k+1):
+                context_constraints.append(TopKGroup(partial_vars[i - (k + 1)], outs2, i))
+
+        diff = Variable(0, k, 'E', 'diff')
+        diff_constr = Linear(Sum([partial_vars[-1], Neg(top)]), diff)
+
+        deltas = [top] + res_vars + partial_matrix + partial_vars
+        diffs = [diff]
+        constraints = mat_constrs + partial_constrs + context_constraints + [diff_constr]
+    elif mode == 'one_hot_diff':
+        # assumes outs1 = one hot vector of NN1
+        # assumes outs2 = output of NN2
+        one_hot_vec = outs1
+        top = Variable(0, 0, 'E', 'top')
+        # one_hot_vec and top need to be enclosed in [], so that indexing in binmult_matrix works
+        res_vars, mat_constrs = encode_binmult_matrix(outs2, 0, 'E', [one_hot_vec], [top])
+
+        diffs = [Variable(0, i, 'E', 'diff') for i in range(len(outs2))]
+        diff_constrs = [Linear(Sum([out, Neg(top)]), diff) for out, diff in zip(outs2, diffs)]
+
+        deltas = [top] + res_vars
+        constraints = mat_constrs + diff_constrs
     else:
         raise ValueError('There is no \'' + mode + '\' keyword for parameter mode')
 
@@ -465,6 +701,11 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
         optimize_ranking_top_k - calculates one permutation matrix on outputs of NN1 and checks for sortedness between
                             top k outputs of NN2 and rest of outputs by computing the difference between o_1' and the non
                             o_k+1'... outputs, needs manual optimization function
+        [not implemented yet] partial_top_k - calculates only necessary part of permutation matrix (only k rows) on NN1
+                            and checks for sortedness between top k outputs of NN2 and rest of the outputs
+        optimize_partial_top_k - calculates only necessary part of permutation matrix (only k rows) on NN1 and checks for
+                            sortedness between top k outputs of NN2 and rest of the outputs, needs manual optimization
+                            function
     :param comparator: keyword for how the selected elements should be compared.
         diff_zero    - elements should be equal
         epsilon_e   - elements of output vector of NN2 should not differ by more than epsilon from the
@@ -477,6 +718,11 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
         optimize_ranking_top_k - calculates one permutation matrix on outputs of NN1 and checks for sortedness between
                             top k outputs of NN2 and rest of outputs by computing the difference between o_1' and the non
                             o_k+1'... outputs, needs manual optimization function
+        optimize_partial_top_k - calculates only necessary part of permutation matrix (only k rows) on NN1 and checks for
+                            sortedness between top k outputs of NN2 and rest of the outputs, needs manual optimization
+                            function
+        optimize_diff - calculates difference for each element of output of NN1 and NN2, needs manual optimization
+                        function
     :return: encoding of the equivalence of NN1 and NN2 as a set of variables and
         mixed integer linear programming constraints
     '''
@@ -512,6 +758,28 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
         # not sure what to specify as num_neurons (num of sorted outs or num of p_ij in permutation matrix?)
         ranking_layer = ('ranking', num_outs1, None)
         layers1.append(ranking_layer)
+    elif compared.startswith('partial_top_') or compared.startswith('optimize_partial_top_'):
+        _, num_outs1, _ = layers1[-1]
+        _, num_outs2, _ = layers2[-1]
+
+        if not num_outs1 == num_outs2:
+            raise ValueError("both NNs must have the same number of outputs")
+
+        k = int(compared.split('_')[-1])
+        # not sure what to specify as num_neurons (num of sorted outs or num of p_ij in permutation matrix?)
+        partial_layer = ('partial_{topk}'.format(topk=k), num_outs1, None)
+        layers1.append(partial_layer)
+    elif compared.startswith('one_hot_partial_top_') or compared == 'one_hot_diff':
+        _, num_outs1, _ = layers1[-1]
+        _, num_outs2, _ = layers2[-1]
+
+        if not num_outs1 == num_outs2:
+            raise ValueError("both NNs must have the same number of outputs")
+
+        one_hot_layer = ('sort_one_hot_vector', num_outs1, None)
+        layers1.append(one_hot_layer)
+    else:
+        raise ValueError('Invalid parameter \'compared\' for encode_equivalence: {name}'.format(name=compared))
 
 
     invars = encode_inputs(input_lower_bounds, input_upper_bounds)
@@ -521,7 +789,7 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
     # should never be used
     outs1 = net1_vars[-1]
     outs2 = net2_vars[-1]
-    if compared in {'outputs', 'one_hot'}:
+    if compared in {'outputs', 'one_hot', 'one_hot_diff'} or compared.startswith('one_hot_partial_top_'):
         outs1 = net1_vars[-1]
         outs2 = net2_vars[-1]
     elif compared == 'ranking_one_hot':
@@ -536,7 +804,8 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
         matrix2 = net2_vars[-1]
         outs1 = matrix1[0]
         outs2 = matrix2[0:k]
-    elif compared.startswith('one_ranking_top_') or compared.startswith('optimize_ranking_top_'):
+    elif compared.startswith('one_ranking_top_') or compared.startswith('optimize_ranking_top_') \
+            or compared.startswith('optimize_partial_top_') or compared.startswith('partial_top_'):
         k = int(compared.split('_')[-1])
 
         matrix1 = net1_vars[-1]
@@ -608,7 +877,7 @@ def print_to_smtlib(vars, constraints):
         decls += '\n' + var.get_smtlib_decl()
         bound = var.get_smtlib_bounds()
         if not bound == '':
-            if hide_non_deltas:
+            if fc.hide_non_deltas:
                 # TODO: find better way to exclude non-delta and input bounds
                 # independent of string representation
                 if is_input_or_delta(var.to_smtlib()):

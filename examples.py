@@ -1,7 +1,9 @@
-
 from expression_encoding import encodeNN, encode_maxpool_layer, encode_inputs, \
     pretty_print, interval_arithmetic, encode_linear_layer, encode_relu_layer, \
-    encode_from_file, encode_one_hot, encode_equivalence, print_to_smtlib, encode_ranking_layer
+    encode_from_file, encode_one_hot, encode_equivalence, print_to_smtlib, encode_ranking_layer, create_gurobi_model
+from performance import Encoder
+from expression import Constant, Variable, Abs
+import flags_constants as fc
 from keras_loader import KerasLoader
 import subprocess
 from os import path
@@ -120,6 +122,30 @@ def testRankingTopK():
 
     # passing layers[:] (copy of layers) is important, because ranking layer is appended to layers
     return encode_equivalence(layers[:], layers[:], inputs, inputs, 'ranking_top_2', 'ranking_top_2')
+
+
+def testSortOneHot():
+    inputs = [3, 5, 7]
+    weights = [[0, 1, 0], [0, 0, 1], [1, 0, 0], [0, 0, 0]]
+    layers = [('relu', 3, weights)]
+
+    return encodeNN(layers, inputs, inputs, '', 'sort_one_hot_vector')
+
+
+def testOneHotPartialEquivalence():
+    inputs = [3, 5, 7]
+    weights = [[0, 1, 0], [0, 0, 1], [1, 0, 0], [0, 0, 0]]
+    layers = [('relu', 3, weights)]
+
+    return encode_equivalence(layers[:], layers[:], inputs, inputs, 'one_hot_partial_top_2', 'one_hot_partial_top_2')
+
+
+def testOneHotDiffEquivalence():
+    inputs = [3, 5, 7]
+    weights = [[0, 1, 0], [0, 0, 1], [1, 0, 0], [0, 0, 0]]
+    layers = [('relu', 3, weights)]
+
+    return encode_equivalence(layers[:], layers[:], inputs, inputs, 'one_hot_diff', 'one_hot_diff')
 
 
 def encodeEquivalenceWithModes(desired='equivalent', compared='ranking_one_hot', comparator='diff_one_hot'):
@@ -255,6 +281,40 @@ def create_cancer_simple_lin_geq_zero2():
     input_his = [10, 10, 10, 10, 10, 10, 10, 10, 10]
 
     return encode_from_file('ExampleNNs/cancer_simple_lin.h5', input_los, input_his)
+
+
+def prepare_layer_wise_equivalence(path1, path2, input_los, input_his, mode):
+    old_eps = fc.epsilon
+    fc.epsilon = 1e-4
+    fc.use_grb_native = False
+
+    enc = Encoder()
+    enc.encode_equivalence_from_file(path1, path2, input_los, input_his, mode)
+
+    interval_arithmetic(enc.get_constraints())
+    for i in range(1, 3):
+        enc.optimize_layer(enc.a_layers, i)
+        enc.optimize_layer(enc.b_layers, i)
+        interval_arithmetic(enc.get_constraints())
+
+    return enc
+
+
+def test_abs(number):
+    input = Constant(number, '', 0, 0)
+    delta = Variable(0, 0, '', 'd', 'Int')
+    delta.update_bounds(0, 1)
+    output = Variable(0, 0, '', 'a')
+
+    vars = [delta, output]
+    constrs = [Abs(input, output, delta)]
+
+    model = create_gurobi_model(vars, constrs)
+    model.optimize()
+
+    res = model.getVarByName('a_0_0').X
+
+    return vars, constrs, res
 
 
 def example_runner():
