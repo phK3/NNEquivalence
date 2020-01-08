@@ -129,7 +129,7 @@ def run_hierarchical_cluster_evaluation(testname, path1='mnist8x8_70p_retrain.h5
 
 
 def run_radius_optimization(testname, path1='mnist8x8_70p_retrain.h5', path2='mnist8x8_80p_retrain.h5',
-                            no_clusters=10, metric='manhattan', logdir='FinalEvaluation', timer_stop=1800,
+                            no_clusters=10, metric='manhattan', logdir='FinalEvaluation/VariableRadius', timer_stop=1800,
                             mode='one_hot_partial_top_3'):
     # returns empty lists, if no evaluation data was found
     path1 = examples + path1
@@ -139,7 +139,9 @@ def run_radius_optimization(testname, path1='mnist8x8_70p_retrain.h5', path2='mn
 
     # 10 most dense clusters in hierarchical manhattan clustering of mnist8x8 training data
     clusters_to_verify = pickle.load(open("to_verify.pickle", "rb"))
-    df_fixed = pickle.load(open('FinalEvaluation/FixedRadius/dataframes/df_summary.pickle', 'rb'))
+    # TODO: remove hack
+    #df_fixed = pickle.load(open('FinalEvaluation/FixedRadius/dataframes/df_summary.pickle', 'rb'))
+    df_fixed = pickle.load(open('FinalEvaluation/FixedRadius/dataframes/df_' + testname + '.pickle', 'rb'))
 
     models = []
     ins = []
@@ -175,7 +177,7 @@ def run_radius_optimization(testname, path1='mnist8x8_70p_retrain.h5', path2='mn
 
         ins.append(inputs)
 
-        fname = name + '.pickle'
+        fname = logdir + '/' + name + '.pickle'
         with open(fname, 'wb') as fp:
             pickle.dump(inputs, fp)
 
@@ -184,27 +186,30 @@ def run_radius_optimization(testname, path1='mnist8x8_70p_retrain.h5', path2='mn
         print('    (val, bound) = ({v}, {bd})'.format(v=model.ObjVal, bd=model.ObjBound))
         print('    ins = {i}'.format(i=str(inputs)))
 
-        eval_dict = {'testname': testname, 'cluster': clno, 'obj': model.ObjVal,
-                     'bound': model.ObjBound, 'time': now - teststart, 'logfile': logfile, 'inputfile': fname,
-                     'model_name': model.getAttr('ModelName'),
-                     'BoundVio': model.getAttr('BoundVio'),
-                     'BoundVioIndex': model.getAttr('BoundVioIndex'),
-                     'ConstrVio': model.getAttr('ConstrVio'),
-                     'ConstrVioIndex': model.getAttr('ConstrVioIndex'),
-                     'ConstrVioSum': model.getAttr('ConstrVioSum'),
-                     'IntVio': model.getAttr('IntVio'),
-                     'IntVioIndex': model.getAttr('IntVioIndex'),
-                     'IntVioSum': model.getAttr('IntVioSum'),
-                     'MaxBound': model.getAttr('MaxBound'),
-                     'MaxCoeff': model.getAttr('MaxCoeff'),
-                     'MaxRHS': model.getAttr('MaxRHS'),
-                     'MinBound': model.getAttr('MinBound'),
-                     'MinCoeff': model.getAttr('MinCoeff')}
+        if model.SolCount > 0:
+            eval_dict = {'testname': testname, 'cluster': clno, 'obj': model.ObjVal,
+                         'bound': model.ObjBound, 'time': now - teststart, 'logfile': logfile, 'inputfile': fname,
+                         'model_name': model.getAttr('ModelName'),
+                         'BoundVio': model.getAttr('BoundVio'),
+                         'BoundVioIndex': model.getAttr('BoundVioIndex'),
+                         'ConstrVio': model.getAttr('ConstrVio'),
+                         'ConstrVioIndex': model.getAttr('ConstrVioIndex'),
+                         'ConstrVioSum': model.getAttr('ConstrVioSum'),
+                         'IntVio': model.getAttr('IntVio'),
+                         'IntVioIndex': model.getAttr('IntVioIndex'),
+                         'IntVioSum': model.getAttr('IntVioSum'),
+                         'MaxBound': model.getAttr('MaxBound'),
+                         'MaxCoeff': model.getAttr('MaxCoeff'),
+                         'MaxRHS': model.getAttr('MaxRHS'),
+                         'MinBound': model.getAttr('MinBound'),
+                         'MinCoeff': model.getAttr('MinCoeff')}
+        else:
+            eval_dict = {'testname': testname, 'cluster': clno}
 
         dict_list.append(eval_dict)
 
     df = pd.DataFrame(dict_list)
-    df.to_pickle('df_' + testname + '.pickle')
+    df.to_pickle(logdir + '/' + 'df_' + testname + '.pickle')
 
     return models, ins, dict_list
 
@@ -264,9 +269,14 @@ def run_no_cluster_evaluation(testname, path1='mnist8x8_70p_retrain.h5', path2='
     return model, inputs, eval_dict
 
 
-def run_final_evaluation_clusters(time_limit=60*60*5, testrun=False, k_start=1):
-    nns = ['mnist8x8_lin.h5', 'mnist8x8_student_18_18_10.h5', 'mnist8x8_student_30_10.h5',
-           'mnist8x8_70p_retrain.h5', 'mnist8x8_50p_retrain.h5', 'mnist8x8_20p_retrain.h5']
+def run_final_evaluation_clusters(time_limit=60*60*5, testrun=False, k_start=1, order='normal',
+                                  nn1start=0, nn2start=0):
+    if order == 'normal':
+        nns = ['mnist8x8_lin.h5', 'mnist8x8_student_18_18_10.h5', 'mnist8x8_student_30_10.h5',
+               'mnist8x8_70p_retrain.h5', 'mnist8x8_50p_retrain.h5', 'mnist8x8_20p_retrain.h5']
+    elif order == 'other':
+        # other order of networks
+        nns = ['mnist8x8_20p_retrain.h5', 'mnist8x8_50p_retrain.h5', 'mnist8x8_70p_retrain.h5']
 
     model_list = []
     ins_list = []
@@ -280,9 +290,17 @@ def run_final_evaluation_clusters(time_limit=60*60*5, testrun=False, k_start=1):
     while timer() < t_end and k <= 3:
         mode = 'one_hot_partial_top_{}'.format(k)
 
-        for i in range(len(nns)):
+        for i in range(nn1start, len(nns)):
             # for now exclude comparison of same nns
-            for j in range(i, i+1): # hack to include self equiv
+            # TODO: remove hack
+            rstart = i
+            rstop = i+1
+            if order == 'other':
+                rstart = i + 1
+                rstop = len(nns)
+
+            for j in range(max(rstart, nn2start), rstop):
+            #for j in range(i, i+1): # hack to include self equiv
             #for j in range(i + 1, len(nns)):
                 if testrun:
                     timer_stop = 20
@@ -301,6 +319,8 @@ def run_final_evaluation_clusters(time_limit=60*60*5, testrun=False, k_start=1):
                 ins_list.append(ins)
                 dicts_list.append(dict_lists)
         k += 1
+        nn1start = 0
+        nn2start = 0
 
     return model_list, ins_list, dicts_list
 
@@ -390,8 +410,14 @@ def find_radius(tname, clno, df):
     return radius_lo, radius_hi
 
 def run_final_evaluation_radius_opt(time_limit=60*60*5, testrun=False, k_start=1, nn1_start=0, nn2_start=0):
-    nns = ['mnist8x8_lin.h5', 'mnist8x8_student_18_18_10.h5', 'mnist8x8_student_30_10.h5',
-           'mnist8x8_70p_retrain.h5', 'mnist8x8_50p_retrain.h5', 'mnist8x8_20p_retrain.h5']
+    #nns = ['mnist8x8_lin.h5', 'mnist8x8_student_18_18_10.h5', 'mnist8x8_student_30_10.h5',
+    #      'mnist8x8_70p_retrain.h5', 'mnist8x8_50p_retrain.h5', 'mnist8x8_20p_retrain.h5']
+
+    # other order of networks
+    #nns = ['mnist8x8_20p_retrain.h5', 'mnist8x8_50p_retrain.h5', 'mnist8x8_70p_retrain.h5']
+
+    # retry student-30-10 vs 50p
+    nns = ['mnist8x8_student_30_10.h5', 'mnist8x8_50p_retrain.h5']
 
     model_list = []
     ins_list = []
@@ -411,7 +437,7 @@ def run_final_evaluation_radius_opt(time_limit=60*60*5, testrun=False, k_start=1
             for j in range(max(i + 1, nn2_start), len(nns)):
                 if testrun:
                     timer_stop = 20
-                    no_clusters = 1
+                    no_clusters = 5
                 else:
                     # 30mins time limit for each optimization
                     timer_stop = 60*30
