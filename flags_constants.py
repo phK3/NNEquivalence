@@ -33,3 +33,7 @@ use_eps_maximum = True
 
 # Whether to use absolute value in encoding of manhattan distance or directly use (2**(n+1)) inequalities
 manhattan_use_absolute_value = True
+
+# Whether to use only LP constraints for encoding of manhattan distance than absolute value of 2**(n+1) inequalities
+# requires manhattan_use_absolute_value == False
+manhattan_use_lp_constraints = False

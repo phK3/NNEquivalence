@@ -209,6 +209,19 @@ class Encoder:
 
             return ineqs, additional_vars
 
+        def add_lp_constraints(radius, dimension, netPrefix, centered_inputs):
+            ineqs = []
+            additional_vars = []
+
+            abs_outs = [Variable(0, i, netPrefix, 'abs') for i in range(dimension)]
+            ineqs.append([Geq(aout, ci) for aout, ci in zip(abs_outs, centered_inputs)])
+            ineqs.append([Geq(aout, Neg(ci)) for aout, ci in zip(abs_outs, centered_inputs)])
+            ineqs.append(Geq(radius, Sum(abs_outs)))
+
+            additional_vars.append(abs_outs)
+
+            return ineqs, additional_vars
+
         def add_direct_constraints(radius, dimension, centered_inputs):
             ineqs = []
             for i in range(2 ** dimension):
@@ -270,6 +283,8 @@ class Encoder:
 
             if fc.manhattan_use_absolute_value:
                 ineqs, constraint_vars = add_absolute_value_constraints(r, dim, netPrefix, centered_inputs)
+            elif fc.manhattan_use_lp_constraints:
+                ineqs, constraint_vars = add_lp_constraints(r, dim, netPrefix, centered_inputs)
             else:
                 ineqs, constraint_vars = add_direct_constraints(r, dim, centered_inputs)
 
