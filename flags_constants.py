@@ -37,3 +37,10 @@ manhattan_use_absolute_value = True
 # Whether to use only LP constraints for encoding of manhattan distance than absolute value of 2**(n+1) inequalities
 # requires manhattan_use_absolute_value == False
 manhattan_use_lp_constraints = False
+
+# Whether to create an individual gurobi model for each variable or to create one model for each layer and just changing
+# the objective for each optimization
+bounds_create_individual_models = False
+
+# Whether to show gurobi log for bounds optimization on console
+bounds_gurobi_print_to_console = False

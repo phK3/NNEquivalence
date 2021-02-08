@@ -218,6 +218,12 @@ class Encoder:
             ineqs.append([Geq(aout, Neg(ci)) for aout, ci in zip(abs_outs, centered_inputs)])
             ineqs.append(Geq(radius, Sum(abs_outs)))
 
+            # absolute values must be greater equal 0
+            # interval arithmetic is not sufficient to compute these bounds, as it is only enforced by combination of
+            # the two inequalities
+            # for v in abs_outs:
+            #    v.setLo(0)
+
             additional_vars.append(abs_outs)
 
             return ineqs, additional_vars
@@ -597,6 +603,10 @@ class Encoder:
                                        name='{vname} lower bound optimization'.format(vname=str(var)))
         model_lb.setObjective(var.to_gurobi(model_lb), grb.GRB.MINIMIZE)
 
+        if not fc.bounds_gurobi_print_to_console:
+            model_ub.setParam('LogToConsole', 0)
+            model_lb.setParam('LogToConsole', 0)
+
         model_ub.setParam('TimeLimit', self.opt_timeout)
         model_lb.setParam('TimeLimit', self.opt_timeout)
         model_ub.optimize()
@@ -607,40 +617,83 @@ class Encoder:
 
         return lb, ub
 
-    def optimize_layer(self, net, layer_idx):
-        if layer_idx < 1:
+    def optimize_layer(self, net, layer_idx, metric='chebyshev'):
+        if metric =='chebyshev' and layer_idx < 1:
             # for first layer we can't get better than interval arithmetic
             return
 
-        if layer_idx == 1:
+        if layer_idx == 0:
+            # for manhattan we need the input layer constraints for tightening
+            opt_layers = []
+            opt_layers.append(self.input_layer)
+
+            opt_vars = opt_layers[0].get_all_vars()[:]
+            opt_constraints = opt_layers[0].get_constraints()[:]
+        elif layer_idx == 1:
             opt_layers = []
             opt_layers.append(self.input_layer)
             opt_layers.append(net[layer_idx - 1])
+
+            if metric == 'manhattan':
+                opt_vars = opt_layers[0].get_all_vars()[:]
+                opt_vars += opt_layers[1].get_all_vars()[:]
+
+                opt_constraints = opt_layers[0].get_constraints()[:]
+                opt_constraints += opt_layers[1].get_constraints()[:]
         else:
             opt_layers = net[layer_idx - 2:layer_idx]
 
-        opt_vars = opt_layers[0].get_outvars()[:]
-        opt_vars += opt_layers[1].get_all_vars()[:]
+        if metric == 'chebyshev' or layer_idx > 1:
+            opt_vars = opt_layers[0].get_outvars()[:]
+            opt_vars += opt_layers[1].get_all_vars()[:]
 
-        opt_constraints = opt_layers[1].get_constraints()
+            opt_constraints = opt_layers[1].get_constraints()
 
-        for i, (var, constr) in enumerate(
-                zip(net[layer_idx].get_optimization_vars(), net[layer_idx].get_optimization_constraints())):
-            lb, ub = self.optimize_variable(var, opt_vars + [var], opt_constraints + [constr])
-            var.update_bounds(lb, ub)
+        if fc.bounds_create_individual_models:
+            for i, (var, constr) in enumerate(
+                    zip(net[layer_idx].get_optimization_vars(), net[layer_idx].get_optimization_constraints())):
+                lb, ub = self.optimize_variable(var, opt_vars + [var], opt_constraints + [constr])
+                var.update_bounds(lb, ub)
+        else:
+            bounds_variables = net[layer_idx].get_optimization_vars()[:]
+            bounds_constraints = net[layer_idx].get_optimization_constraints()[:]
+            self.optimize_variables(bounds_variables, opt_vars, opt_constraints + bounds_constraints)
+
+    def optimize_variables(self, opt_vars, vars, constraints):
+        model_vars = opt_vars + vars
+        m = create_gurobi_model(model_vars, constraints, name='bounds optimization model')
+
+        if not fc.bounds_gurobi_print_to_console:
+            m.setParam('LogToConsole', 0)
+
+        for v in opt_vars:
+            m.reset()
+            m.setObjective(v.to_gurobi(m), grb.GRB.MAXIMIZE)
+            m.setParam('TimeLimit', self.opt_timeout)
+            m.optimize()
+            ub = m.ObjBound
+
+            m.reset()
+            m.setObjective(v.to_gurobi(m), grb.GRB.MINIMIZE)
+            m.setParam('TimeLimit', self.opt_timeout)
+            m.optimize()
+            lb = m.ObjBound
+
+            v.update_bounds(lb, ub)
 
 
-    def optimize_net(self, net):
+
+    def optimize_net(self, net, metric='chebyshev'):
         for i in range(len(net)):
             if not net[i].activation == 'one_hot':
-                self.optimize_layer(net, i)
+                self.optimize_layer(net, i, metric=metric)
                 interval_arithmetic(self.get_constraints())
 
 
-    def optimize_constraints(self):
+    def optimize_constraints(self, metric='chebyshev'):
         interval_arithmetic(self.get_constraints())
-        self.optimize_net(self.a_layers)
-        self.optimize_net(self.b_layers)
+        self.optimize_net(self.a_layers, metric=metric)
+        self.optimize_net(self.b_layers, metric=metric)
 
 
     def check_equivalence_layer(self, layer_idx):
