@@ -32,11 +32,11 @@ use_context_groups = True
 use_eps_maximum = True
 
 # Whether to use absolute value in encoding of manhattan distance or directly use (2**(n+1)) inequalities
-manhattan_use_absolute_value = True
+manhattan_use_absolute_value = False
 
 # Whether to use only LP constraints for encoding of manhattan distance than absolute value of 2**(n+1) inequalities
 # requires manhattan_use_absolute_value == False
-manhattan_use_lp_constraints = False
+manhattan_use_lp_constraints = True
 
 # Whether to create an individual gurobi model for each variable or to create one model for each layer and just changing
 # the objective for each optimization
