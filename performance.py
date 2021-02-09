@@ -622,7 +622,7 @@ class Encoder:
 
         return lb, ub
 
-    def optimize_layer(self, net, layer_idx, metric='chebyshev'):
+    def optimize_layer(self, net, layer_idx, metric='chebyshev', use_lp_relaxation=False):
         if metric =='chebyshev' and layer_idx < 1:
             # for first layer we can't get better than interval arithmetic
             return
@@ -662,24 +662,28 @@ class Encoder:
         else:
             bounds_variables = net[layer_idx].get_optimization_vars()[:]
             bounds_constraints = net[layer_idx].get_optimization_constraints()[:]
-            self.optimize_variables(bounds_variables, opt_vars, opt_constraints + bounds_constraints)
+            self.optimize_variables(bounds_variables, opt_vars, opt_constraints + bounds_constraints,
+                                    use_lp_relaxation=use_lp_relaxation)
 
-    def optimize_variables(self, opt_vars, vars, constraints):
+    def optimize_variables(self, opt_vars, vars, constraints, use_lp_relaxation=False):
         model_vars = opt_vars + vars
         m = create_gurobi_model(model_vars, constraints, name='bounds optimization model')
+
+        if use_lp_relaxation:
+            m = m.relax()
 
         if not fc.bounds_gurobi_print_to_console:
             m.setParam('LogToConsole', 0)
 
         for v in opt_vars:
             m.reset()
-            m.setObjective(v.to_gurobi(m), grb.GRB.MAXIMIZE)
+            m.setObjective(m.getVarByName(v.name), grb.GRB.MAXIMIZE)
             m.setParam('TimeLimit', self.opt_timeout)
             m.optimize()
             ub = m.ObjBound
 
             m.reset()
-            m.setObjective(v.to_gurobi(m), grb.GRB.MINIMIZE)
+            m.setObjective(m.getVarByName(v.name), grb.GRB.MINIMIZE)
             m.setParam('TimeLimit', self.opt_timeout)
             m.optimize()
             lb = m.ObjBound
@@ -689,17 +693,17 @@ class Encoder:
 
 
 
-    def optimize_net(self, net, metric='chebyshev'):
+    def optimize_net(self, net, metric='chebyshev', use_lp_relaxation=False):
         for i in range(len(net)):
             if not net[i].activation == 'one_hot':
-                self.optimize_layer(net, i, metric=metric)
+                self.optimize_layer(net, i, metric=metric, use_lp_relaxation=use_lp_relaxation)
                 interval_arithmetic(self.get_constraints())
 
 
-    def optimize_constraints(self, metric='chebyshev'):
+    def optimize_constraints(self, metric='chebyshev', use_lp_relaxation=False):
         interval_arithmetic(self.get_constraints())
-        self.optimize_net(self.a_layers, metric=metric)
-        self.optimize_net(self.b_layers, metric=metric)
+        self.optimize_net(self.a_layers, metric=metric, use_lp_relaxation=use_lp_relaxation)
+        self.optimize_net(self.b_layers, metric=metric, use_lp_relaxation=use_lp_relaxation)
 
 
     def check_equivalence_layer(self, layer_idx):
