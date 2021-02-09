@@ -682,6 +682,7 @@ class Encoder:
             m.optimize()
             lb = m.ObjBound
 
+            print('{}: [{}, {}]'.format(v, lb, ub))
             v.update_bounds(lb, ub)
 
 
