@@ -270,7 +270,10 @@ class Encoder:
             additional_vars.append(r)
 
             diff = self.equivalence_layer.get_outvars()[-1]
-            additional_ineqs.append(Geq(diff, Constant(fc.not_equiv_tolerance, netPrefix, 0, 0)))
+            # can't append E_diff_0_1 >= eps in input layer, otherwise individual bounds optimization has no definition
+            # for E_diff_0_1, which is defined in equivalence layer
+            self.equivalence_layer.constraints.append(Geq(diff, Constant(fc.not_equiv_tolerance, netPrefix, 0, 0)))
+            #additional_ineqs.append(Geq(diff, Constant(fc.not_equiv_tolerance, netPrefix, 0, 0)))
             #additional_ineqs.append(Geq(diff, Constant(0, netPrefix, 0, 0)))
         else:
             raise ValueError('radius_mode: {} is not supported!'.format(radius_mode))
