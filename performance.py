@@ -157,6 +157,8 @@ class Encoder:
             diff = model.getVarByName('E_norm_1_0')
             model.setObjective(diff, grb.GRB.MAXIMIZE)
 
+        # models are updated lazily (only after call to update or optimize)
+        model.update()
         return model
 
     def encode_equiv(self, reference_nn, test_nn, input_lower_bounds, input_upper_bounds, mode):
