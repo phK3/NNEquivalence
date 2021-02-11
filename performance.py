@@ -220,12 +220,6 @@ class Encoder:
             ineqs.append([Geq(aout, Neg(ci)) for aout, ci in zip(abs_outs, centered_inputs)])
             ineqs.append(Geq(radius, Sum(abs_outs)))
 
-            # absolute values must be greater equal 0
-            # interval arithmetic is not sufficient to compute these bounds, as it is only enforced by combination of
-            # the two inequalities
-            # for v in abs_outs:
-            #    v.setLo(0)
-
             additional_vars.append(abs_outs)
 
             return ineqs, additional_vars
@@ -662,10 +656,13 @@ class Encoder:
         else:
             bounds_variables = net[layer_idx].get_optimization_vars()[:]
             bounds_constraints = net[layer_idx].get_optimization_constraints()[:]
-            self.optimize_variables(bounds_variables, opt_vars, opt_constraints + bounds_constraints,
-                                    use_lp_relaxation=use_lp_relaxation)
 
-    def optimize_variables(self, opt_vars, vars, constraints, use_lp_relaxation=False):
+            early_stopping = fc.bounds_relu_early_stopping and net[layer_idx].activation == 'relu'
+            self.optimize_variables(bounds_variables, opt_vars, opt_constraints + bounds_constraints,
+                                    use_lp_relaxation=use_lp_relaxation, early_stopping=early_stopping)
+
+    def optimize_variables(self, opt_vars, vars, constraints, use_lp_relaxation=False,
+                           early_stopping=False):
         model_vars = opt_vars + vars
         m = create_gurobi_model(model_vars, constraints, name='bounds optimization model')
 
@@ -676,17 +673,21 @@ class Encoder:
             m.setParam('LogToConsole', 0)
 
         for v in opt_vars:
-            m.reset()
-            m.setObjective(m.getVarByName(v.name), grb.GRB.MAXIMIZE)
-            m.setParam('TimeLimit', self.opt_timeout)
-            m.optimize()
-            ub = m.ObjBound
+            lb = v.lo
+            ub = v.hi
+            if not (early_stopping and ub <= 0):
+                m.reset()
+                m.setObjective(m.getVarByName(v.name), grb.GRB.MAXIMIZE)
+                m.setParam('TimeLimit', self.opt_timeout)
+                m.optimize()
+                ub = m.ObjBound
 
-            m.reset()
-            m.setObjective(m.getVarByName(v.name), grb.GRB.MINIMIZE)
-            m.setParam('TimeLimit', self.opt_timeout)
-            m.optimize()
-            lb = m.ObjBound
+            if not (early_stopping and lb >= 0):
+                m.reset()
+                m.setObjective(m.getVarByName(v.name), grb.GRB.MINIMIZE)
+                m.setParam('TimeLimit', self.opt_timeout)
+                m.optimize()
+                lb = m.ObjBound
 
             print('{}: [{}, {}]'.format(v, lb, ub))
             v.update_bounds(lb, ub)

@@ -44,3 +44,6 @@ bounds_create_individual_models = False
 
 # Whether to show gurobi log for bounds optimization on console
 bounds_gurobi_print_to_console = False
+
+# don't optimize relu bounds, if they are already fixed
+bounds_relu_early_stopping = False
