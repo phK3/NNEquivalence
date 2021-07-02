@@ -86,7 +86,7 @@ class OnnxLoader(NNLoader):
     def getNumOutputs(self):
         last_hidden = self.layers[-1]
         _, _, weights = last_hidden
-        _, outputs = last_hidden.weights.shape
+        _, outputs = weights.shape
         return outputs
 
     def getActivationFunction(self, layer):
