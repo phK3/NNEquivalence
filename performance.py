@@ -2,6 +2,7 @@
 from abc import ABC, abstractmethod
 from expression import Expression, Variable, Linear, Sum, Neg, Constant, Geq, Abs, Multiplication
 from keras_loader import KerasLoader
+from onnx_loader import OnnxLoader
 import flags_constants as fc
 import numpy as np
 from expression_encoding import encode_equivalence, interval_arithmetic, hasLinear, encode_linear_layer, \
@@ -563,15 +564,23 @@ class Encoder:
 
     def encode_equivalence_from_file(self, path1, path2, input_lower_bounds, input_upper_bounds, compared='outputs',
                                      comparator='diff_zero'):
-        kl1 = KerasLoader()
-        kl1.load(path1)
-        layers1 = kl1.getHiddenLayers()
+        paths = [path1, path2]
 
-        kl2 = KerasLoader()
-        kl2.load(path2)
-        layers2 = kl2.getHiddenLayers()
+        layers = []
+        for i in range(2):
+            path = paths[i]
+            suffix = path.split('.')[-1]
+            if suffix == 'h5':
+                loader = KerasLoader()
+            elif suffix == 'onnx':
+                loader = OnnxLoader()
+            else:
+                raise ValueError('File type .{} is not supported!'.format(suffix))
 
-        self.encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds, compared, comparator)
+            loader.load(path)
+            layers.append(loader.getHiddenLayers())
+
+        self.encode_equivalence(layers[0], layers[1], input_lower_bounds, input_upper_bounds, compared, comparator)
 
     def optimize_variable(self, var, opt_vars, opt_constraints):
         model_ub = create_gurobi_model(opt_vars, opt_constraints,
