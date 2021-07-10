@@ -61,6 +61,7 @@ class OnnxLoader(NNLoader):
                 else:
                     weights = np.vstack((weight.T, bias))
                 numNeurons = len(bias)
+                print(numNeurons)
                 self.layers.append(('relu', numNeurons, weights))
             else:
                 raise ValueError('Operation {} is not supported!'.format(op))
