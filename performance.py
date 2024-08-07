@@ -1,5 +1,6 @@
 
 from abc import ABC, abstractmethod
+import time
 from expression import Expression, Variable, Linear, Sum, Neg, Constant, Geq, Abs, Multiplication
 from keras_loader import KerasLoader
 from onnx_loader import OnnxLoader
@@ -113,9 +114,13 @@ class Encoder:
         self.radius_mode = None
 
         self.opt_timeout = 20
+        self.total_timeout = np.inf
 
     def set_opt_timeout(self, new_val):
         self.opt_timeout = new_val
+
+    def set_total_timeout(self, new_val):
+        self.total_timeout = new_val
 
     def encode_inputs(self, lower_bounds, upper_bounds, netPrefix=''):
         vars = []
@@ -617,8 +622,16 @@ class Encoder:
 
         model_ub.setParam('TimeLimit', self.opt_timeout)
         model_lb.setParam('TimeLimit', self.opt_timeout)
+        start = time.time()
         model_ub.optimize()
+        self.total_timeout -= time.time() - start
+        if self.total_timeout < 0:
+            raise TimeoutError('Total timeout exceeded!')
+        start = time.time()
         model_lb.optimize()
+        self.total_timeout -= time.time() - start
+        if self.total_timeout < 0:
+            raise TimeoutError('Total timeout exceeded!')
 
         ub = model_ub.ObjBound
         lb = model_lb.ObjBound
@@ -688,14 +701,22 @@ class Encoder:
                 m.reset()
                 m.setObjective(m.getVarByName(v.name), grb.GRB.MAXIMIZE)
                 m.setParam('TimeLimit', self.opt_timeout)
+                start = time.time()
                 m.optimize()
+                self.total_timeout -= time.time() - start
+                if self.total_timeout < 0:
+                    raise TimeoutError('Total timeout exceeded!')
                 ub = m.ObjBound
 
             if not (early_stopping and lb >= 0):
                 m.reset()
                 m.setObjective(m.getVarByName(v.name), grb.GRB.MINIMIZE)
                 m.setParam('TimeLimit', self.opt_timeout)
+                start = time.time()
                 m.optimize()
+                self.total_timeout -= time.time() - start
+                if self.total_timeout < 0:
+                    raise TimeoutError('Total timeout exceeded!')
                 lb = m.ObjBound
 
             print('{}: [{}, {}]'.format(v, lb, ub))
@@ -707,11 +728,19 @@ class Encoder:
         for i in range(len(net)):
             if not net[i].activation == 'one_hot':
                 self.optimize_layer(net, i, metric=metric, use_lp_relaxation=use_lp_relaxation)
+                start = time.time()
                 interval_arithmetic(self.get_constraints())
+                self.total_timeout -= time.time() - start
+                if self.total_timeout < 0:
+                    raise TimeoutError('Total timeout exceeded!')
 
 
     def optimize_constraints(self, metric='chebyshev', use_lp_relaxation=False):
+        start = time.time()
         interval_arithmetic(self.get_constraints())
+        self.total_timeout -= time.time() - start
+        if self.total_timeout < 0:
+            raise TimeoutError('Total timeout exceeded!')
         self.optimize_net(self.a_layers, metric=metric, use_lp_relaxation=use_lp_relaxation)
         self.optimize_net(self.b_layers, metric=metric, use_lp_relaxation=use_lp_relaxation)
 

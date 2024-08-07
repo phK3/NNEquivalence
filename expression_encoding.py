@@ -2,6 +2,7 @@
 from expression import Variable, Linear, Relu, Max, Multiplication, Constant, Sum, Neg, One_hot, Greater_Zero, \
     Geq, BinMult, Gt_Int, Impl, IndicatorToggle, TopKGroup, ExtremeGroup, Abs
 from keras_loader import KerasLoader
+from onnx_loader import OnnxLoader
 import gurobipy as grb
 import datetime
 import flags_constants as fc
@@ -363,8 +364,15 @@ def encodeNN(layers, input_lower_bounds, input_upper_bounds, net_prefix, mode='n
 
 
 def encode_NN_from_file(file_name, input_lower_bounds, input_upper_bounds, net_prefix, mode='normal'):
-    kl = KerasLoader()
+    suffix = file_name.split('.')[-1]
+    if suffix == 'h5':
+        kl = KerasLoader()
+    elif suffix == 'onnx':
+        kl = OnnxLoader()
+    else:
+        raise ValueError('File type .{} is not supported!'.format(suffix))
     kl.load(file_name)
+    
 
     return encodeNN(kl.getHiddenLayers(), input_lower_bounds, input_upper_bounds, net_prefix, mode)
 
@@ -825,7 +833,13 @@ def encode_equivalence(layers1, layers2, input_lower_bounds, input_upper_bounds,
 
 
 def encode_from_file(path, input_lower_bounds, input_upper_bounds, mode='normal'):
-    kl = KerasLoader()
+    suffix = path.split('.')[-1]
+    if suffix == 'h5':
+        kl = KerasLoader()
+    elif suffix == 'onnx':
+        kl = OnnxLoader()
+    else:
+        raise ValueError('File type .{} is not supported!'.format(suffix))
     kl.load(path)
 
     layers = kl.getHiddenLayers()
@@ -835,11 +849,23 @@ def encode_from_file(path, input_lower_bounds, input_upper_bounds, mode='normal'
 
 def encode_equivalence_from_file(path1, path2, input_lower_bounds, input_upper_bounds, compared='outputs',
                        comparator='diff_zero'):
-    kl1 = KerasLoader()
+    suffix = path1.split('.')[-1]
+    if suffix == 'h5':
+        kl1 = KerasLoader()
+    elif suffix == 'onnx':
+        kl1 = OnnxLoader()
+    else:
+        raise ValueError('File type .{} is not supported!'.format(suffix))
     kl1.load(path1)
     layers1 = kl1.getHiddenLayers()
 
-    kl2 = KerasLoader()
+    suffix = path2.split('.')[-1]
+    if suffix == 'h5':
+        kl2 = KerasLoader()
+    elif suffix == 'onnx':
+        kl2 = OnnxLoader()
+    else:
+        raise ValueError('File type .{} is not supported!'.format(suffix))
     kl2.load(path2)
     layers2 = kl2.getHiddenLayers()
 

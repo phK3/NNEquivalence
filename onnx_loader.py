@@ -28,7 +28,6 @@ class OnnxLoader(NNLoader):
             if op in ['Add', 'Sub']:
                 init = init_map[node.input[1]]
                 bias = numpy_helper.to_array(init)
-
                 if op == 'Sub':
                     bias = -bias
             elif op == 'Flatten':
@@ -51,11 +50,16 @@ class OnnxLoader(NNLoader):
                         bias = bias.ravel()
                         print('[Parsing] Reshaping bias')
             elif op == 'MatMul':
-                init = init_map[node.input[1]]
-                weight = numpy_helper.to_array(init)
+                if node.input[1] in init_map:
+                    init = init_map[node.input[1]]
+                    weight = numpy_helper.to_array(init)
+                else:
+                    init = init_map[node.input[0]]
+                    weight = numpy_helper.to_array(init).T
             elif op == 'Relu':
                 weights = np.vstack((weight, bias))
                 numNeurons = len(bias)
+                print(numNeurons)
                 self.layers.append(('relu', numNeurons, weights))
             else:
                 raise ValueError('Operation {} is not supported!'.format(op))
