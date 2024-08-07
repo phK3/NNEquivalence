@@ -52,14 +52,12 @@ class OnnxLoader(NNLoader):
             elif op == 'MatMul':
                 if node.input[1] in init_map:
                     init = init_map[node.input[1]]
+                    weight = numpy_helper.to_array(init)
                 else:
                     init = init_map[node.input[0]]
-                weight = numpy_helper.to_array(init)
+                    weight = numpy_helper.to_array(init).T
             elif op == 'Relu':
-                if weight.shape[1]==bias.shape[0]:
-                    weights = np.vstack((weight, bias))
-                else:
-                    weights = np.vstack((weight.T, bias))
+                weights = np.vstack((weight, bias))
                 numNeurons = len(bias)
                 print(numNeurons)
                 self.layers.append(('relu', numNeurons, weights))
@@ -67,10 +65,7 @@ class OnnxLoader(NNLoader):
                 raise ValueError('Operation {} is not supported!'.format(op))
 
         if weight is not None and bias is not None:
-            if weight.shape[1]==bias.shape[0]:
-                weights = np.vstack((weight, bias))
-            else:
-                weights = np.vstack((weight.T, bias))
+            weights = np.vstack((weight, bias))
             numNeurons = len(bias)
             self.layers.append(('linear', numNeurons, weights))
 
