@@ -84,6 +84,23 @@ def calculate_violation(ins, path1, path2, top_k=1):
 
     return b_k.lo - b_atop.lo
 
+
+def calculate_distance(ins, path1, path2, mode='chebyshev'):
+    outs1 = check_outputs(path1, ins, sort=False, printing=False)
+    outs2 = check_outputs(path2, ins, sort=False, printing=False)
+    outs1 = [x.lo for x in outs1]
+    outs2 = [x.lo for x in outs2]
+
+    diffs = [abs(x - y) for x, y in zip(outs1, outs2)]
+
+    if mode == 'chebyshev':
+        return max(diffs)
+    elif mode == 'manhattan':
+        return sum(diffs)
+    else:
+        raise ValueError(f"mode {mode} no known!")
+
+
 def compare_outputs(nn1, nn2, ins, sort=False):
     outs1 = check_outputs(nn1, ins, sort, printing=False)
     outs2 = check_outputs(nn2, ins, sort, printing=False)
